@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "reqify-session",
+      "value": "4c1bfb856ddb2e69aa67bfd8a69f8cc93f810fde91af89b55ade0e6b616f9f25",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1779956785.10756,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}
