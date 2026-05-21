@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+
+# Next.js
+.next
+out
+
+# Build output
+dist
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Drizzle migrations (generated)
+drizzle/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Playwright
+e2e/.auth/
+playwright-report/
+test-results/
