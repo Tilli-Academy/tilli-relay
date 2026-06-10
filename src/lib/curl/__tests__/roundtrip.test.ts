@@ -19,6 +19,8 @@ describe("builder <-> parser roundtrip", () => {
       headers: [],
       params: [],
       body: "",
+      bodyType: "none",
+      formData: [],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);
@@ -33,6 +35,8 @@ describe("builder <-> parser roundtrip", () => {
       headers: [{ key: "Content-Type", value: "application/json", enabled: true }],
       params: [],
       body: '{"name":"test","value":42}',
+      bodyType: "json",
+      formData: [],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);
@@ -50,6 +54,8 @@ describe("builder <-> parser roundtrip", () => {
       headers: [],
       params: [],
       body: "",
+      bodyType: "none",
+      formData: [],
       auth: { type: "basic", basic: { username: "admin", password: "secret" } },
     };
     const parsed = roundtrip(state);
@@ -65,6 +71,8 @@ describe("builder <-> parser roundtrip", () => {
       headers: [],
       params: [],
       body: "",
+      bodyType: "none",
+      formData: [],
       auth: { type: "bearer", bearer: { token: "jwt.token.here" } },
     };
     const parsed = roundtrip(state);
@@ -83,6 +91,8 @@ describe("builder <-> parser roundtrip", () => {
       ],
       params: [],
       body: '{"updated":true}',
+      bodyType: "json",
+      formData: [],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);
@@ -101,6 +111,8 @@ describe("builder <-> parser roundtrip", () => {
       headers: [],
       params: [],
       body: "",
+      bodyType: "none",
+      formData: [],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);
@@ -119,6 +131,8 @@ describe("builder <-> parser roundtrip", () => {
       ],
       params: [],
       body: "",
+      bodyType: "none",
+      formData: [],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);
@@ -136,6 +150,8 @@ describe("builder <-> parser roundtrip", () => {
         { key: "page", value: "2", enabled: true },
       ],
       body: "",
+      bodyType: "none",
+      formData: [],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);

@@ -12,7 +12,6 @@ dist
 .env
 .env.local
 .env.*.local
-.env.example
 
 # Drizzle migrations (generated)
 drizzle/
