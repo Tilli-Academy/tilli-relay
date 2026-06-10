@@ -44,7 +44,7 @@ test.describe("Signup Flow", () => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
     await loginPage.signup(
-      "e2e-worker-0@test.reqify.local",
+      "e2e-worker-0@test.relay.local",
       "StrongP@ss1!",
     );
     await loginPage.expectSignupError(/already exists|duplicate|registered/i);
@@ -62,7 +62,7 @@ test.describe("Signup Flow", () => {
   }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    const email = `e2e-signup-${uniqueId()}@test.reqify.local`;
+    const email = `e2e-signup-${uniqueId()}@test.relay.local`;
     await loginPage.signup(email, "StrongP@ss1!");
     await loginPage.expectRedirectToWorkspace();
   });

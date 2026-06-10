@@ -160,4 +160,73 @@ export const SEL = {
   // ── Toast ──
   toastContainer: tid("toast-container"),
   toast: (id: string) => tid(`toast-${id}`),
+
+  // ── Team Panel ──
+  teamPanelBackdrop: tid("team-panel-backdrop"),
+  teamPanel: tid("team-panel"),
+  teamPanelClose: tid("team-panel-close"),
+  teamPanelBack: tid("team-panel-back"),
+
+  // Team List
+  teamCreateButton: tid("team-create-button"),
+  teamCreateNameInput: tid("team-create-name-input"),
+  teamCreateConfirm: tid("team-create-confirm"),
+  teamCreateCancel: tid("team-create-cancel"),
+  teamEmptyState: tid("team-empty-state"),
+  teamListItem: (id: string) => tid(`team-list-item-${id}`),
+  teamSwitch: (id: string) => tid(`team-switch-${id}`),
+  teamSettings: (id: string) => tid(`team-settings-${id}`),
+  teamActiveBadge: (id: string) => tid(`team-active-badge-${id}`),
+
+  // Team Detail
+  teamNameDisplay: tid("team-name-display"),
+  teamNameEditButton: tid("team-name-edit-button"),
+  teamNameInput: tid("team-name-input"),
+  teamNameSave: tid("team-name-save"),
+  teamCurrentBadge: tid("team-current-badge"),
+  teamSwitchToButton: tid("team-switch-to-button"),
+  teamMember: (id: string) => tid(`team-member-${id}`),
+  teamMemberEmail: (id: string) => tid(`team-member-email-${id}`),
+  teamMemberRole: (id: string) => tid(`team-member-role-${id}`),
+  teamMemberRemove: (id: string) => tid(`team-member-remove-${id}`),
+  teamInviteEmail: tid("team-invite-email"),
+  teamInviteRole: tid("team-invite-role"),
+  teamInviteSubmit: tid("team-invite-submit"),
+  teamDeleteTrigger: tid("team-delete-trigger"),
+  teamDeleteConfirm: tid("team-delete-confirm"),
+  teamDeleteCancel: tid("team-delete-cancel"),
+
+  // ── Share Dialog ──
+  shareDialogBackdrop: tid("share-dialog-backdrop"),
+  shareDialog: tid("share-dialog"),
+  shareDialogClose: tid("share-dialog-close"),
+  shareExpirationSelect: tid("share-expiration-select"),
+  shareCreateLink: tid("share-create-link"),
+  shareNoLinks: tid("share-no-links"),
+  shareLink: (i: number) => tid(`share-link-${i}`),
+  shareLinkUrl: (i: number) => tid(`share-link-url-${i}`),
+  shareLinkCopy: (i: number) => tid(`share-link-copy-${i}`),
+  shareLinkRevoke: (i: number) => tid(`share-link-revoke-${i}`),
+
+  // ── Response History ──
+  historyEmpty: tid("history-empty"),
+  historyClearButton: tid("history-clear-button"),
+  historyEntry: (i: number) => tid(`history-entry-${i}`),
+  historyEntryMethod: (i: number) => tid(`history-entry-method-${i}`),
+  historyEntryUrl: (i: number) => tid(`history-entry-url-${i}`),
+  historyEntryStatus: (i: number) => tid(`history-entry-status-${i}`),
+
+  // ── Workspace Switcher ──
+  workspaceSwitcherButton: tid("workspace-switcher-button"),
+  workspaceSwitcherDropdown: tid("workspace-switcher-dropdown"),
+  workspacePersonalOption: tid("workspace-personal-option"),
+  workspaceTeamOption: (id: string) => tid(`workspace-team-option-${id}`),
+  workspaceManageTeams: tid("workspace-manage-teams"),
+
+  // ── Activity Log ──
+  activityLogPanel: tid("activity-log-panel"),
+  activityLogClose: tid("activity-log-close"),
+  activityEmpty: tid("activity-empty"),
+  activityEntry: (i: number) => tid(`activity-entry-${i}`),
+  activityLoadMore: tid("activity-load-more"),
 } as const;

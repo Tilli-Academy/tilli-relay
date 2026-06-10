@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { randomUUID } from "crypto";
 import path from "path";
 import { UPLOAD_DIR, MAX_FILE_SIZE } from "@/lib/upload";
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (req, { session }) => {
   let formData;
   try {
     formData = await req.formData();
@@ -56,4 +51,4 @@ export async function POST(req: NextRequest) {
     console.error("[POST /api/upload]", err);
     return NextResponse.json({ error: "Failed to save file" }, { status: 500 });
   }
-}
+});

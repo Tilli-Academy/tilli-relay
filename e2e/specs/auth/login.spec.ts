@@ -52,7 +52,7 @@ test.describe("Login Flow", () => {
   test("shows error for wrong password", async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login("e2e-worker-0@test.reqify.local", "WrongP@ssword1!");
+    await loginPage.login("e2e-worker-0@test.relay.local", "WrongP@ssword1!");
     await loginPage.expectLoginError(/incorrect|wrong|invalid/i);
   });
 
@@ -63,12 +63,14 @@ test.describe("Login Flow", () => {
       `nonexistent-${uniqueId()}@test.local`,
       "TestP@ss1234!",
     );
-    await loginPage.expectLoginError(/not found|no account/i);
+    // Server returns the same generic error for both wrong password and non-existent email
+    // to prevent user enumeration
+    await loginPage.expectLoginError(/invalid email or password|incorrect|wrong/i);
   });
 
   test("shows loading spinner during login submission", async ({ page }) => {
     await page.goto("/login");
-    await page.locator(SEL.loginEmail).fill("e2e-worker-0@test.reqify.local");
+    await page.locator(SEL.loginEmail).fill("e2e-worker-0@test.relay.local");
     await page.locator(SEL.loginPassword).fill("TestP@ss1234!");
     await page.locator(SEL.loginSubmit).click();
     await expect(page.locator(SEL.loginSubmit)).toContainText(/logging in/i);
@@ -77,7 +79,7 @@ test.describe("Login Flow", () => {
   test("logs in successfully and redirects to workspace", async ({ page }) => {
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login("e2e-worker-0@test.reqify.local", "TestP@ss1234!");
+    await loginPage.login("e2e-worker-0@test.relay.local", "TestP@ss1234!");
     await loginPage.expectRedirectToWorkspace();
   });
 });

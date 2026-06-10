@@ -36,7 +36,13 @@ const FLAGS_WITH_VALUE = new Set([
   "--max-time",
 ]);
 
-const UPLOAD_DIR = process.env.REQIFY_UPLOAD_DIR || "/tmp/reqify-uploads";
+const UPLOAD_DIR = process.env.RELAY_UPLOAD_DIR || "/tmp/relay-uploads";
+
+/** Data flags whose values must not start with @ (prevents arbitrary file read) */
+const DATA_FLAGS = new Set(["-d", "--data", "--data-raw", "--data-binary"]);
+
+/** Cookie flags whose values must use key=value format (bare path = file read) */
+const COOKIE_FLAGS = new Set(["-b", "--cookie"]);
 
 /**
  * Validates and sanitizes a curl command string.
@@ -49,7 +55,14 @@ const UPLOAD_DIR = process.env.REQIFY_UPLOAD_DIR || "/tmp/reqify-uploads";
  */
 export function sanitize(curl: string): SanitizeResult {
   const tokens = tokenize(curl);
+  return sanitizeTokens(tokens);
+}
 
+/**
+ * Validates and sanitizes pre-tokenized curl args.
+ * Use this when you need to substitute variables between tokenization and validation.
+ */
+export function sanitizeTokens(tokens: string[]): SanitizeResult {
   if (tokens.length === 0 || tokens[0] !== "curl") {
     return { valid: false, error: "Command must start with 'curl'", sanitizedArgs: [] };
   }
@@ -70,7 +83,14 @@ export function sanitize(curl: string): SanitizeResult {
       }
 
       if (eqIdx !== -1) {
-        // --flag=value syntax: push as single token
+        // --flag=value syntax: validate value portion before accepting
+        const flagValue = token.slice(eqIdx + 1);
+        if (DATA_FLAGS.has(flagName) && flagValue.startsWith("@")) {
+          return { valid: false, error: "File references (@) are not allowed in data flags", sanitizedArgs: [] };
+        }
+        if (COOKIE_FLAGS.has(flagName) && flagValue.length > 0 && !flagValue.includes("=")) {
+          return { valid: false, error: "Cookie file paths are not allowed; use key=value format", sanitizedArgs: [] };
+        }
         args.push(token);
       } else {
         args.push(token);
@@ -100,6 +120,16 @@ export function sanitize(curl: string): SanitizeResult {
             }
           }
 
+          // Block @file references in data flags (prevents arbitrary file read)
+          if (DATA_FLAGS.has(token) && tokens[i].startsWith("@")) {
+            return { valid: false, error: "File references (@) are not allowed in data flags", sanitizedArgs: [] };
+          }
+
+          // Block cookie file paths (values without = are treated as file paths by curl)
+          if (COOKIE_FLAGS.has(token) && tokens[i].length > 0 && !tokens[i].includes("=")) {
+            return { valid: false, error: "Cookie file paths are not allowed; use key=value format", sanitizedArgs: [] };
+          }
+
           args.push(tokens[i]);
         }
       }
@@ -123,7 +153,7 @@ export function sanitize(curl: string): SanitizeResult {
 /**
  * Tokenizes a curl command, respecting single and double quotes.
  */
-function tokenize(input: string): string[] {
+export function tokenize(input: string): string[] {
   const tokens: string[] = [];
   let current = "";
   let inSingle = false;

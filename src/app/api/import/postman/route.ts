@@ -1,36 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { collections, collectionRequests, requests } from "@/lib/schema";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
+import { collections, collectionRequests, requests, folders } from "@/lib/schema";
+import { eq, and, isNull } from "drizzle-orm";
+import { withTeamAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
 import { logActivity } from "@/lib/activityLog";
+import { parseJsonBody } from "@/lib/request";
 import {
   parsePostmanCollection,
   validatePostmanJson,
 } from "@/lib/postman/importer";
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
-
+export const POST = withTeamAuth("editor", async (req, { session, teamId }) => {
   let json;
   try {
-    json = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    json = await parseJsonBody(req, 5 * 1024 * 1024);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const validationError = validatePostmanJson(json);
@@ -55,9 +41,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Validate _folderId ownership if provided
+  let folderId: string | null = null;
+  if (json._folderId) {
+    const ownerFilter = teamId
+      ? and(eq(folders.id, json._folderId), eq(folders.teamId, teamId))
+      : and(eq(folders.id, json._folderId), eq(folders.userId, session.userId), isNull(folders.teamId));
+
+    const [folder] = await db
+      .select({ id: folders.id })
+      .from(folders)
+      .where(ownerFilter)
+      .limit(1);
+
+    if (!folder) {
+      return NextResponse.json({ error: "Folder not found or access denied" }, { status: 400 });
+    }
+    folderId = folder.id;
+  }
+
   try {
     const collection = await db.transaction(async (tx) => {
-      const folderId = json._folderId || null;
 
       const [col] = await tx
         .insert(collections)
@@ -113,4 +117,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

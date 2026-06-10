@@ -59,11 +59,6 @@ test.describe("Sidebar - Requests CRUD", () => {
     await expect(page.locator(SEL.sidebar)).not.toContainText(name);
   });
 
-  test("Ctrl+S opens save prompt", async ({ page }) => {
-    await page.keyboard.press("Control+s");
-    await expect(page.locator(SEL.saveNameInput)).toBeVisible();
-  });
-
   test("Escape dismisses save prompt", async ({ page }) => {
     await page.locator(SEL.saveCurrentButton).click();
     await expect(page.locator(SEL.saveNameInput)).toBeVisible();

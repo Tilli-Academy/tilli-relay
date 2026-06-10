@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { XIcon } from "@/components/Icons";
-import { api } from "@/lib/apiBase";
+import { api, authFetch } from "@/lib/apiBase";
 
 interface ActivityLogProps {
   open: boolean;
@@ -114,7 +114,7 @@ export default function ActivityLog({ open, onClose, workspace }: ActivityLogPro
       setError(null);
 
       try {
-        const res = await fetch(
+        const res = await authFetch(
           api(`/api/teams/${teamId}/activity?limit=${PAGE_SIZE}&offset=${offset}`),
           {
             headers: { "x-team-id": teamId },
@@ -184,6 +184,7 @@ export default function ActivityLog({ open, onClose, workspace }: ActivityLogPro
     >
       <div
         ref={panelRef}
+        data-testid="activity-log-panel"
         className="flex h-full w-[420px] flex-col border-l border-border-primary bg-surface-primary shadow-xl animate-in slide-in-from-right duration-200"
       >
         {/* Header */}
@@ -195,6 +196,7 @@ export default function ActivityLog({ open, onClose, workspace }: ActivityLogPro
             )}
           </div>
           <button
+            data-testid="activity-log-close"
             onClick={onClose}
             className="rounded p-1 text-content-muted transition-colors hover:bg-surface-secondary hover:text-content-secondary"
           >
@@ -227,7 +229,7 @@ export default function ActivityLog({ open, onClose, workspace }: ActivityLogPro
               </button>
             </div>
           ) : entries.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 px-4 py-16">
+            <div data-testid="activity-empty" className="flex flex-col items-center justify-center gap-2 px-4 py-16">
               <p className="text-xs text-content-muted">No activity yet</p>
               <p className="text-[10px] text-content-dim">
                 Team actions will appear here as they happen
@@ -235,11 +237,12 @@ export default function ActivityLog({ open, onClose, workspace }: ActivityLogPro
             </div>
           ) : (
             <div className="divide-y divide-border-secondary/50">
-              {entries.map((entry) => {
+              {entries.map((entry, index) => {
                 const color = getUserColor(entry.actorEmail);
                 return (
                   <div
                     key={entry.id}
+                    data-testid={`activity-entry-${index}`}
                     className="px-4 py-3 transition-colors hover:bg-surface-secondary/30"
                   >
                     <div className="flex items-start gap-2.5">
@@ -278,6 +281,7 @@ export default function ActivityLog({ open, onClose, workspace }: ActivityLogPro
               {hasMore && (
                 <div className="px-4 py-3">
                   <button
+                    data-testid="activity-load-more"
                     onClick={handleLoadMore}
                     disabled={loadingMore}
                     className="w-full rounded border border-border-primary bg-surface-secondary px-3 py-1.5 text-xs text-content-secondary transition-colors hover:bg-surface-secondary disabled:opacity-50"

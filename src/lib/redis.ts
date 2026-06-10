@@ -9,7 +9,17 @@ function createRedis() {
   if (!url) {
     throw new Error("REDIS_URL environment variable is required");
   }
-  return new Redis(url);
+  return new Redis(url, {
+    connectTimeout: 5000,
+    commandTimeout: 5000,
+    maxRetriesPerRequest: 3,
+    retryStrategy(times) {
+      if (times > 10) return null;
+      return Math.min(times * 200, 3000);
+    },
+    enableReadyCheck: true,
+    lazyConnect: false,
+  });
 }
 
 export const redis = globalForRedis.redis ?? createRedis();

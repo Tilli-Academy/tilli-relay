@@ -1,37 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { environments } from "@/lib/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
+import { withTeamAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 import { logActivity } from "@/lib/activityLog";
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const PUT = withTeamAuth("editor", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   try {
@@ -74,28 +57,10 @@ export async function PUT(
     console.error("[PUT /api/environments/:id]", err);
     return NextResponse.json({ error: "Failed to update environment" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const DELETE = withTeamAuth("editor", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     const envFilter = teamId
@@ -120,4 +85,4 @@ export async function DELETE(
     console.error("[DELETE /api/environments/:id]", err);
     return NextResponse.json({ error: "Failed to delete environment" }, { status: 500 });
   }
-}
+});

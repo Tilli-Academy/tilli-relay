@@ -1,9 +1,10 @@
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { redis } from "./redis";
 
-export const COOKIE_NAME = "reqify-session";
+export const COOKIE_NAME = "relay-session";
+export const SESSION_HEADER = "x-relay-session";
 const SESSION_PREFIX = "session:";
 const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days in seconds
 
@@ -26,30 +27,65 @@ function generateToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Build Set-Cookie header value for the session cookie. */
-function buildSessionCookie(token: string, maxAge: number): string {
-  return `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`;
+/** Cookie options shared by set and clear operations. */
+function cookieOptions(maxAge: number): {
+  path: string;
+  httpOnly: boolean;
+  sameSite: "lax";
+  secure: boolean;
+  maxAge: number;
+} {
+  return {
+    path: "/",
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.COOKIE_SECURE === "true",
+    maxAge,
+  };
 }
 
-/** Create a Redis session and return the Set-Cookie header value. */
+/**
+ * Create a Redis session and return the token.
+ * The caller is responsible for including the token in the response
+ * (both as a cookie and in the body for proxy environments).
+ */
 export async function createSession(userId: string): Promise<string> {
   const token = generateToken();
   await redis.set(`${SESSION_PREFIX}${token}`, userId, "EX", SESSION_TTL);
-  return buildSessionCookie(token, SESSION_TTL);
+  return token;
 }
 
-/** Attach session cookie to a NextResponse. */
-export function setSessionCookie(response: NextResponse, setCookieHeader: string): NextResponse {
-  response.headers.set("Set-Cookie", setCookieHeader);
-  return response;
+/** Set the session cookie on a NextResponse. */
+export function setSessionCookie(response: NextResponse, token: string): void {
+  response.cookies.set(COOKIE_NAME, token, cookieOptions(SESSION_TTL));
 }
 
-/** Read session cookie, look up in Redis, return userId or null. */
+/** Clear the session cookie on a NextResponse. */
+export function clearSessionCookie(response: NextResponse): void {
+  response.cookies.set(COOKIE_NAME, "", cookieOptions(0));
+}
+
+/**
+ * Read session token from cookie OR x-relay-session header.
+ * The header fallback is needed because code-server proxy strips Set-Cookie
+ * from proxied responses, so the browser never receives the cookie.
+ */
 export async function getSession(): Promise<{ userId: string } | null> {
+  // Try cookie first
   const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-  return verifySession(token);
+  const cookieToken = cookieStore.get(COOKIE_NAME)?.value;
+  if (cookieToken) {
+    return verifySession(cookieToken);
+  }
+
+  // Fall back to x-relay-session header (for proxied environments)
+  const headerStore = await headers();
+  const headerToken = headerStore.get(SESSION_HEADER);
+  if (headerToken) {
+    return verifySession(headerToken);
+  }
+
+  return null;
 }
 
 /** Verify a session token against Redis. */
@@ -61,20 +97,32 @@ export async function verifySession(
   return { userId };
 }
 
-/** Destroy session: delete from Redis and return the Set-Cookie header to clear it. */
-export async function destroySession(): Promise<string> {
+/** Destroy session in Redis and clear cookie on response. */
+export async function destroySession(response: NextResponse): Promise<NextResponse> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const headerStore = await headers();
+  const token =
+    cookieStore.get(COOKIE_NAME)?.value ||
+    headerStore.get(SESSION_HEADER);
   if (token) {
     await redis.del(`${SESSION_PREFIX}${token}`);
   }
-  return buildSessionCookie("", 0);
+  clearSessionCookie(response);
+  return response;
 }
 
-/** Reads session cookie from a request's Cookie header (for middleware). */
-export function getSessionCookieFromRequest(
+/**
+ * Reads session token from a request — checks both cookie and header.
+ * Used in middleware (edge runtime).
+ */
+export function getSessionTokenFromRequest(
   req: Request
 ): string | undefined {
+  // Check x-relay-session header first (proxy-safe)
+  const headerToken = req.headers.get(SESSION_HEADER);
+  if (headerToken) return headerToken;
+
+  // Fall back to cookie
   const cookieHeader = req.headers.get("cookie");
   if (!cookieHeader) return undefined;
   const match = cookieHeader

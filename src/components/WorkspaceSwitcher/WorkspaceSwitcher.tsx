@@ -49,6 +49,7 @@ export default function WorkspaceSwitcher({
   return (
     <div ref={ref} className="relative">
       <button
+        data-testid="workspace-switcher-button"
         onClick={() => setOpen((p) => !p)}
         className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs font-medium text-content-secondary hover:bg-surface-secondary transition-colors w-full"
       >
@@ -71,9 +72,10 @@ export default function WorkspaceSwitcher({
       </button>
 
       {open && (
-        <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border-primary bg-surface-primary shadow-lg py-1">
+        <div data-testid="workspace-switcher-dropdown" className="absolute left-0 right-0 top-full mt-1 z-50 rounded-md border border-border-primary bg-surface-primary shadow-lg py-1">
           {/* Personal workspace */}
           <button
+            data-testid="workspace-personal-option"
             onClick={() => {
               onSwitchPersonal();
               setOpen(false);
@@ -103,6 +105,7 @@ export default function WorkspaceSwitcher({
             return (
               <button
                 key={team.id}
+                data-testid={`workspace-team-option-${team.id}`}
                 onClick={() => {
                   onSwitchTeam(team.id, team.name, team.role);
                   setOpen(false);
@@ -128,6 +131,7 @@ export default function WorkspaceSwitcher({
           <div className="border-t border-border-secondary my-1" />
 
           <button
+            data-testid="workspace-manage-teams"
             onClick={() => {
               onManageTeams();
               setOpen(false);

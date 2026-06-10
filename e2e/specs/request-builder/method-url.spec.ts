@@ -1,6 +1,7 @@
 import { test, expect } from "../../fixtures/auth.fixture";
 import { SEL } from "../../helpers/selectors";
 import { WorkspacePage } from "../../page-objects/WorkspacePage";
+import { MOCK_BASE } from "../../helpers/test-data";
 
 test.describe("Method & URL Bar", () => {
   let ws: WorkspacePage;
@@ -43,18 +44,40 @@ test.describe("Method & URL Bar", () => {
     await expect(page.locator(SEL.tabBody)).toBeVisible();
   });
 
-  test("URL input updates curl panel", async () => {
-    await ws.fillUrl("https://httpbin.org/get");
-    const curlText = await ws.getCurlText();
-    expect(curlText).toContain("https://httpbin.org/get");
-  });
-
   test("Ctrl+Enter sends request from URL bar", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await page.locator(SEL.urlInput).focus();
     await page.keyboard.press("Control+Enter");
     await expect(page.locator(SEL.responseStatus)).toBeVisible({
       timeout: 35_000,
     });
+  });
+
+  test("URL with special characters produces correct curl", async () => {
+    await ws.fillUrl("https://httpbin.org/get?foo=bar&baz=hello%20world");
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("foo=bar");
+    expect(curlText).toContain("baz=");
+  });
+
+  test("very long URL (2000+ chars) accepted and reflected in curl", async () => {
+    const longQuery = "x=" + "a".repeat(2000);
+    const url = `https://httpbin.org/get?${longQuery}`;
+    await ws.fillUrl(url);
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("httpbin.org/get");
+    expect(curlText.length).toBeGreaterThan(2000);
+  });
+
+  test("URL with port number handled correctly", async () => {
+    await ws.fillUrl("https://httpbin.org:443/get");
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("httpbin.org:443/get");
+  });
+
+  test("URL with fragment preserved in curl", async () => {
+    await ws.fillUrl("https://httpbin.org/get#section1");
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("httpbin.org/get");
   });
 });

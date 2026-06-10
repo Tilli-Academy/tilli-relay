@@ -2,32 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { collections, collectionRequests, requests } from "@/lib/schema";
 import { eq, and, asc, isNull } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
+import { withTeamAuth } from "@/lib/withAuth";
 import { exportAsPostmanJson, exportAsShellScript } from "@/lib/postman/exporter";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
+export const GET = withTeamAuth("viewer", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
   const { searchParams } = new URL(req.url);
   const format = searchParams.get("format") || "postman";
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "viewer");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
 
   if (!["postman", "shell"].includes(format)) {
     return NextResponse.json({ error: "Invalid format. Use 'postman' or 'shell'" }, { status: 400 });
@@ -66,7 +47,7 @@ export async function GET(
 
     if (format === "postman") {
       const postmanJson = exportAsPostmanJson(exportData);
-      const filename = `${collection.name.replace(/[^a-zA-Z0-9_-]/g, "_")}.reqify.json`;
+      const filename = `${collection.name.replace(/[^a-zA-Z0-9_-]/g, "_")}.relay.json`;
 
       return new NextResponse(JSON.stringify(postmanJson, null, 2), {
         status: 200,
@@ -91,4 +72,4 @@ export async function GET(
     console.error("[GET /api/collections/:id/export]", err);
     return NextResponse.json({ error: "Failed to export collection" }, { status: 500 });
   }
-}
+});

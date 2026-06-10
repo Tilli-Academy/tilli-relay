@@ -1,4 +1,4 @@
-# Claude.md — Reqify (Postman‑Compatible API Development Tool)
+# Claude.md — Relay (Postman‑Compatible API Development Tool)
 
 ## Role & Expectations
 You are acting as a **senior staff‑level software architect and backend engineer**.
@@ -40,7 +40,8 @@ If curl is correct → everything is correct.
 
 ### Database
 - PostgreSQL
-- Prisma ORM
+- Drizzle ORM
+- Redis (sessions)
 
 ### Styling
 - Tailwind CSS
@@ -174,6 +175,18 @@ If curl is always correct and executable, the product is successful.
 
 Act accordingly.
 
+## Operations
+
+### Starting the application
+1. `docker compose up -d` — start PostgreSQL and Redis
+2. `PORT=3033 RELAY_E2E_ALLOW_LOCAL=true npx next start --port 3033` — start the server
+
+### Stopping the application
+1. Stop the Next.js server process
+2. `docker compose down` — stop PostgreSQL and Redis
+
+Always start Docker before the application and stop Docker after stopping the application.
+
 ---
 
 ## ARCHITECTURE DECISIONS (Finalized)
@@ -182,8 +195,8 @@ Act accordingly.
 
 ```
 Reqify/
-├── prisma/
-│   └── schema.prisma
+├── drizzle/
+│   └── *.sql                 # Drizzle migrations
 ├── src/
 │   ├── app/                          # Next.js App Router
 │   │   ├── layout.tsx
@@ -229,7 +242,7 @@ Reqify/
 │   │   │   └── executor.ts           # child_process.execFile, timeout, parse output
 │   │   ├── postman/
 │   │   │   └── importer.ts           # Postman Collection v2.1 JSON → curl strings
-│   │   ├── db.ts                     # Prisma client singleton
+│   │   ├── db.ts                     # Drizzle client + connection pool
 │   │   └── types.ts                  # Shared TypeScript interfaces
 │   └── hooks/
 │       ├── useRequestState.ts        # Request form state management
@@ -241,42 +254,22 @@ Reqify/
 └── package.json
 ```
 
-### Database Schema (Prisma)
+### Database Schema (Drizzle — src/lib/schema.ts)
 
-```prisma
-model Request {
-  id          String              @id @default(cuid())
-  name        String
-  curl        String              @db.Text
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  collections CollectionRequest[]
-}
+Core tables (see `src/lib/schema.ts` for full definitions):
 
-model Collection {
-  id          String              @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  requests    CollectionRequest[]
-}
-
-model CollectionRequest {
-  id           String     @id @default(cuid())
-  collectionId String
-  requestId    String
-  sortOrder    Int        @default(0)
-  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  request      Request    @relation(fields: [requestId], references: [id], onDelete: Cascade)
-
-  @@unique([collectionId, requestId])
-}
-```
-
-
-
-
+- **users** — id, email, passwordHash
+- **teams** — id, name, slug
+- **teamMembers** — teamId, userId, role (pgEnum: owner/editor/viewer)
+- **requests** — id, name, curl (TEXT), userId, teamId
+- **collections** — id, name, description, folderId, userId, teamId
+- **collectionRequests** — collectionId, requestId, sortOrder
+- **folders** — id, name, userId, teamId
+- **environments** — id, name, userId, teamId, isActive
+- **environmentVariables** — id, key, value (encrypted), environmentId, userId
+- **historyEntries** — id, userId, method, url, curl, statusCode, timeMs, response
+- **sharedRequests** — id, requestId, sharedByUserId, token, expiresAt
+- **activityLogs** — id, teamId, userId, action, resourceType, resourceId
 
 No method/URL/headers/body columns — all derivable from `curl`.
 
@@ -322,7 +315,7 @@ CurlPanel ──► parser.ts  ──► UI Fields (reverse sync)
 - Accepts Postman Collection v2.1 JSON
 - Recursively walks `item[]` (supports nested folders → nested collections)
 - Converts each item's `request` object (method, url, header, body, auth) → curl via `builder.ts`
-- Creates DB records via Prisma
+- Creates DB records via Drizzle
 
 ### Component Responsibilities
 
@@ -356,7 +349,7 @@ CurlPanel ──► parser.ts  ──► UI Fields (reverse sync)
 
 ### Implementation Order
 
-1. **Phase 1 — Scaffolding**: Next.js + TypeScript + Tailwind + Prisma + PostgreSQL setup
+1. **Phase 1 — Scaffolding**: Next.js + TypeScript + Tailwind + Drizzle + PostgreSQL + Redis setup
 2. **Phase 2 — curl Library**: `builder.ts`, `parser.ts`, `sanitizer.ts`, `executor.ts` (with tests)
 3. **Phase 3 — API Routes**: `/api/execute`, `/api/requests`, `/api/collections`
 4. **Phase 4 — UI Components**: RequestBuilder, CurlPanel, ResponseViewer, Sidebar
@@ -369,6 +362,4 @@ CurlPanel ──► parser.ts  ──► UI Fields (reverse sync)
 - **Environment variables** — `{{base_url}}`, `{{token}}` substitution before execution
 - **Tabs** — multiple open requests in the workspace
 - **Export** — export collections back to Postman format or as shell scripts
-
-
 

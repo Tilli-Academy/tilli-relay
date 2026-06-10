@@ -1,33 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { environmentVariables, environments } from "@/lib/schema";
 import { eq, and, asc, isNull } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
+import { withTeamAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
+import { encrypt } from "@/lib/crypto";
 
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const KEY_MAX_LENGTH = 100;
 const VALUE_MAX_LENGTH = 10_000;
 
-export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const GET = withTeamAuth("viewer", async (req, { session, teamId }) => {
   const { searchParams } = new URL(req.url);
   const environmentId = searchParams.get("environmentId");
-  const teamId = req.headers.get("x-team-id");
-
-  // If a teamId is provided, verify access via the environment's team
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "viewer");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
 
   try {
     const conditions = [];
@@ -61,30 +47,14 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/variables]", err);
     return NextResponse.json({ error: "Failed to fetch variables" }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
-
+export const POST = withTeamAuth("editor", async (req, { session, teamId }) => {
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { key, value, isSecret, environmentId } = body;
@@ -109,11 +79,32 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Verify the user/team actually owns this environment (prevents IDOR)
+    if (environmentId) {
+      const [env] = teamId
+        ? await db
+            .select({ id: environments.id })
+            .from(environments)
+            .where(and(eq(environments.id, environmentId), eq(environments.teamId, teamId)))
+            .limit(1)
+        : await db
+            .select({ id: environments.id })
+            .from(environments)
+            .where(and(eq(environments.id, environmentId), eq(environments.userId, session.userId), isNull(environments.teamId)))
+            .limit(1);
+
+      if (!env) {
+        return NextResponse.json({ error: "Environment not found or access denied" }, { status: 403 });
+      }
+    }
+
+    const storedValue = isSecret ? encrypt(value) : value;
+
     const [created] = await db
       .insert(environmentVariables)
       .values({
         key: key.trim(),
-        value,
+        value: storedValue,
         isSecret: !!isSecret,
         userId: session.userId,
         environmentId: environmentId || null,
@@ -133,4 +124,4 @@ export async function POST(req: NextRequest) {
     console.error("[POST /api/variables]", err);
     return NextResponse.json({ error: "Failed to create variable" }, { status: 500 });
   }
-}
+});

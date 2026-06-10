@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sharedRequests, requests } from "@/lib/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 import { generateShareToken } from "@/lib/shareToken";
 import { requireTeamRole } from "@/lib/teamAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 
-export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const GET = withAuth(async (req, { session }) => {
   const { searchParams } = new URL(req.url);
   const requestId = searchParams.get("requestId");
 
@@ -37,19 +34,14 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/share]", err);
     return NextResponse.json({ error: "Failed to fetch share links" }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (req, { session }) => {
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { requestId, expiresInHours } = body;
@@ -101,4 +93,4 @@ export async function POST(req: NextRequest) {
     console.error("[POST /api/share]", err);
     return NextResponse.json({ error: "Failed to create share link" }, { status: 500 });
   }
-}
+});

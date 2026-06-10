@@ -2,18 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { historyEntries } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const DELETE = withAuth(async (_req, { session }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     const deleted = await db
@@ -30,4 +22,4 @@ export async function DELETE(
     console.error("[DELETE /api/history/:id]", err);
     return NextResponse.json({ error: "Failed to delete history entry" }, { status: 500 });
   }
-}
+});

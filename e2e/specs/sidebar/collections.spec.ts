@@ -106,4 +106,35 @@ test.describe("Sidebar - Collections and Folders", () => {
     await expect(collRow).toContainText("2");
     await api.deleteCollection(collection.id);
   });
+
+  test("collections with duplicate names both appear in sidebar", async ({
+    page,
+    api,
+  }) => {
+    const name = uniqueCollectionName();
+    const coll1 = await api.createCollection(name);
+    const coll2 = await api.createCollection(name);
+    await page.reload();
+    await expect(page.locator(SEL.workspace)).toBeVisible({ timeout: 15_000 });
+    // Both should be visible — expect at least 2 occurrences
+    const matches = page.locator(SEL.sidebar).getByText(name);
+    await expect(matches).toHaveCount(2);
+    await api.deleteCollection(coll1.id);
+    await api.deleteCollection(coll2.id);
+  });
+
+  test("deleting a collection removes it from sidebar", async ({
+    page,
+    api,
+  }) => {
+    const collection = await api.createCollection(uniqueCollectionName());
+    await page.reload();
+    await expect(page.locator(SEL.workspace)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(SEL.sidebar)).toContainText(collection.name);
+
+    await api.deleteCollection(collection.id);
+    await page.reload();
+    await expect(page.locator(SEL.workspace)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(SEL.sidebar)).not.toContainText(collection.name);
+  });
 });

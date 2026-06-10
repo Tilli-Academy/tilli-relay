@@ -1,6 +1,7 @@
 import { test, expect } from "../../fixtures/auth.fixture";
 import { SEL } from "../../helpers/selectors";
 import { WorkspacePage } from "../../page-objects/WorkspacePage";
+import { MOCK_BASE } from "../../helpers/test-data";
 
 test.describe("Response Body Display", () => {
   let ws: WorkspacePage;
@@ -18,14 +19,14 @@ test.describe("Response Body Display", () => {
   });
 
   test("shows JSON tree viewer in pretty mode", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await expect(page.locator(SEL.responseViewPretty)).toBeVisible();
     await expect(page.locator(SEL.responseBody)).toBeVisible();
   });
 
   test("shows raw text in raw mode", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await page.locator(SEL.responseViewRaw).click();
     await expect(page.locator(SEL.responseBody)).toBeVisible();
@@ -33,13 +34,13 @@ test.describe("Response Body Display", () => {
   });
 
   test("displays non-JSON text responses", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/html");
+    await ws.fillUrl(`${MOCK_BASE}/html`);
     await ws.sendAndWaitForResponse();
     await expect(page.locator(SEL.responseBody)).toBeVisible();
   });
 
   test("shows response size indicator", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await expect(page.locator(SEL.responseSize)).toBeVisible();
   });

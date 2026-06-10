@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, text, timestamp, integer, boolean, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createId } from "@paralleldrive/cuid2";
 
 export const users = pgTable("users", {
@@ -8,6 +8,10 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+export const teamRoleEnum = pgEnum("team_role", ["owner", "editor", "viewer"]);
 
 // ─── Teams ───────────────────────────────────────────────────────────────────
 
@@ -23,7 +27,7 @@ export const teamMembers = pgTable("team_members", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  role: text("role").notNull(), // "owner" | "editor" | "viewer"
+  role: teamRoleEnum("role").notNull(),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
 }, (t) => [
   uniqueIndex("team_member_unique").on(t.teamId, t.userId),

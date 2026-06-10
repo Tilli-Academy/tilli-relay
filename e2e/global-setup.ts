@@ -7,12 +7,13 @@ import { chromium, type FullConfig } from "@playwright/test";
 import path from "path";
 import fs from "fs";
 import Redis from "ioredis";
+import { startMockServer } from "./mock-server";
 
 const WORKER_COUNT = 4;
 const TEST_PASSWORD = "TestP@ss1234!";
 
 function testEmail(workerIndex: number): string {
-  return `e2e-worker-${workerIndex}@test.reqify.local`;
+  return `e2e-worker-${workerIndex}@test.relay.local`;
 }
 
 function authDir(): string {
@@ -24,6 +25,9 @@ function storageStatePath(workerIndex: number): string {
 }
 
 export default async function globalSetup(config: FullConfig) {
+  // Start the mock HTTP server (replaces httpbin.org for reliable tests)
+  await startMockServer();
+
   const baseURL =
     config.projects[0]?.use?.baseURL || "http://localhost:3002";
 

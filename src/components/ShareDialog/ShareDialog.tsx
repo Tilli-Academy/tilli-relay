@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { XIcon, TrashIcon } from "@/components/Icons";
 import { showToast } from "@/components/Toast/Toast";
-import { api } from "@/lib/apiBase";
+import { api, authFetch } from "@/lib/apiBase";
 
 interface ShareDialogProps {
   open: boolean;
@@ -96,7 +96,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
     if (!requestId) return;
     setLoading(true);
     try {
-      const res = await fetch(api(`/api/share?requestId=${requestId}`));
+      const res = await authFetch(api(`/api/share?requestId=${requestId}`));
       if (res.ok) {
         const data: ShareLink[] = await res.json();
         setLinks(data);
@@ -151,7 +151,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
       if (hours !== undefined) {
         body.expiresInHours = hours;
       }
-      const res = await fetch(api("/api/share"), {
+      const res = await authFetch(api("/api/share"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -182,7 +182,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
     async (token: string) => {
       setRevokingToken(token);
       try {
-        const res = await fetch(api(`/api/share/${token}`), {
+        const res = await authFetch(api(`/api/share/${token}`), {
           method: "DELETE",
         });
         if (res.ok) {
@@ -216,11 +216,13 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
 
   return (
     <div
+      data-testid="share-dialog-backdrop"
       className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay-bg)]"
       onClick={handleBackdropClick}
     >
       <div
         ref={panelRef}
+        data-testid="share-dialog"
         className="flex w-[480px] flex-col rounded-lg border border-border-primary bg-surface-primary shadow-xl"
       >
         {/* Header */}
@@ -232,6 +234,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
             </p>
           </div>
           <button
+            data-testid="share-dialog-close"
             onClick={onClose}
             className="ml-2 shrink-0 rounded p-1 text-content-muted transition-colors hover:bg-surface-secondary hover:text-content-secondary"
           >
@@ -246,6 +249,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
           </label>
           <div className="flex items-center gap-2">
             <select
+              data-testid="share-expiration-select"
               value={expiration}
               onChange={(e) => setExpiration(e.target.value as Expiration)}
               className="rounded border border-border-primary bg-surface-secondary px-2 py-1.5 text-xs text-content-primary focus:border-tilli focus:outline-none"
@@ -257,6 +261,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
               ))}
             </select>
             <button
+              data-testid="share-create-link"
               onClick={handleCreateLink}
               disabled={creating || !requestId}
               className="rounded bg-tilli px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-tilli-light disabled:opacity-50"
@@ -277,25 +282,27 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
               <p className="text-xs text-content-muted">Loading links...</p>
             </div>
           ) : links.length === 0 ? (
-            <div className="flex items-center justify-center py-6">
+            <div data-testid="share-no-links" className="flex items-center justify-center py-6">
               <p className="text-xs text-content-muted">No active share links.</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {links.map((link) => {
+              {links.map((link, index) => {
                 const url = buildShareUrl(link.token);
                 const isRevoking = revokingToken === link.token;
                 return (
                   <div
                     key={link.id}
+                    data-testid={`share-link-${index}`}
                     className="rounded border border-border-secondary bg-surface-tertiary px-3 py-2"
                   >
                     {/* Link URL */}
                     <div className="flex items-center gap-2">
-                      <code className="min-w-0 flex-1 truncate text-[11px] text-content-secondary" title={url}>
+                      <code data-testid={`share-link-url-${index}`} className="min-w-0 flex-1 truncate text-[11px] text-content-secondary" title={url}>
                         {url}
                       </code>
                       <button
+                        data-testid={`share-link-copy-${index}`}
                         onClick={() => handleCopyLink(link.token)}
                         title="Copy link"
                         className="shrink-0 rounded p-1 text-content-muted transition-colors hover:bg-surface-secondary hover:text-content-secondary"
@@ -315,6 +322,7 @@ export default function ShareDialog({ open, onClose, requestId, requestName }: S
                         </svg>
                       </button>
                       <button
+                        data-testid={`share-link-revoke-${index}`}
                         onClick={() => handleRevoke(link.token)}
                         disabled={isRevoking}
                         title="Revoke link"

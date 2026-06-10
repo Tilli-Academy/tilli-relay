@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionCookieFromRequest } from "@/lib/auth.edge";
+import { getSessionTokenFromRequest } from "@/lib/auth.edge";
 
 const PUBLIC_API_PATHS = ["/api/auth/login", "/api/auth/signup", "/api/share/"];
 
@@ -44,7 +44,7 @@ export async function middleware(req: NextRequest) {
 
   // For protected API routes, check for session cookie.
   // Actual Redis session verification happens in each route handler via getSession().
-  const token = getSessionCookieFromRequest(req);
+  const token = getSessionTokenFromRequest(req);
   if (!token) {
     return applySecurityHeaders(
       NextResponse.json({ error: "Not authenticated" }, { status: 401 })

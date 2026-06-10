@@ -2,6 +2,9 @@
  * Test data generators — each produces unique names to avoid cross-test collisions.
  */
 
+/** Local mock server URL — replaces httpbin.org for reliable tests */
+export const MOCK_BASE = "http://localhost:9444";
+
 let counter = 0;
 
 export function uniqueId(): string {
@@ -21,6 +24,10 @@ export function uniqueFolderName(prefix = "Folder"): string {
 }
 
 export function uniqueEnvName(prefix = "Env"): string {
+  return `${prefix} ${uniqueId()}`;
+}
+
+export function uniqueTeamName(prefix = "Team"): string {
   return `${prefix} ${uniqueId()}`;
 }
 

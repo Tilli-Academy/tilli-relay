@@ -4,6 +4,7 @@ import { users } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword, createSession, setSessionCookie } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { getClientIp } from "@/lib/clientIp";
 
 function redirectTo(path: string, req: NextRequest): NextResponse {
   // Use Referer or Origin to preserve the proxy prefix (e.g. /proxy/3002)
@@ -30,8 +31,8 @@ function redirectTo(path: string, req: NextRequest): NextResponse {
  */
 export async function POST(req: NextRequest) {
   // Rate limit: 5 attempts per minute per IP
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = await checkRateLimit(`login:${ip}`, 5, 60);
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(`login:${ip}`, 10, 60);
   if (!rl.allowed) {
     return redirectTo("/login?error=" + encodeURIComponent("Too many login attempts. Try again later."), req);
   }
@@ -55,9 +56,10 @@ export async function POST(req: NextRequest) {
       return redirectTo("/login?error=" + encodeURIComponent("Invalid email or password"), req);
     }
 
-    const cookieHeader = await createSession(user.id);
+    const token = await createSession(user.id);
     const response = redirectTo("/", req);
-    return setSessionCookie(response, cookieHeader);
+    setSessionCookie(response, token);
+    return response;
   } catch (err) {
     console.error("[POST /api/auth/login-form]", err);
     return redirectTo("/login?error=" + encodeURIComponent("Login failed. Please try again."), req);

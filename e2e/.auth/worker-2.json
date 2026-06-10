@@ -1,15 +1,25 @@
 {
   "cookies": [
     {
-      "name": "reqify-session",
-      "value": "4c1bfb856ddb2e69aa67bfd8a69f8cc93f810fde91af89b55ade0e6b616f9f25",
+      "name": "relay-session",
+      "value": "63610f9daf6fa2c64302036d956e155c05744495efa3d99bad76931a9df4767d",
       "domain": "localhost",
       "path": "/",
-      "expires": 1779956785.10756,
+      "expires": 1781697403.77764,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
     }
   ],
-  "origins": []
+  "origins": [
+    {
+      "origin": "http://localhost:3033",
+      "localStorage": [
+        {
+          "name": "relay-session-token",
+          "value": "63610f9daf6fa2c64302036d956e155c05744495efa3d99bad76931a9df4767d"
+        }
+      ]
+    }
+  ]
 }

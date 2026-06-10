@@ -1,6 +1,7 @@
 import { test, expect } from "../../fixtures/auth.fixture";
 import { SEL } from "../../helpers/selectors";
 import { WorkspacePage } from "../../page-objects/WorkspacePage";
+import { MOCK_BASE } from "../../helpers/test-data";
 
 test.describe("Keyboard Shortcuts", () => {
   let ws: WorkspacePage;
@@ -42,7 +43,7 @@ test.describe("Keyboard Shortcuts", () => {
   });
 
   test("Ctrl+Enter sends the current request", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await page.locator(SEL.urlInput).focus();
     await page.keyboard.press("Control+Enter");
     await expect(page.locator(SEL.responseStatus)).toBeVisible({

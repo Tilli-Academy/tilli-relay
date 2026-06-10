@@ -2,28 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { teamMembers, users } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 import { requireTeamRole } from "@/lib/teamAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 import { logActivity } from "@/lib/activityLog";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function GET(
-  _req: NextRequest,
-  { params }: RouteContext
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const GET = withAuth(async (_req, { session }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     await requireTeamRole(session.userId, id, "viewer");
-  } catch (e: unknown) {
-    const err = e as { status?: number; error?: string };
-    return NextResponse.json({ error: err.error }, { status: err.status || 403 });
+  } catch (e) {
+    return handleAppError(e);
   }
 
   try {
@@ -44,31 +35,22 @@ export async function GET(
     console.error("[GET /api/teams/:id/members]", err);
     return NextResponse.json({ error: "Failed to fetch members" }, { status: 500 });
   }
-}
+});
 
-export async function POST(
-  req: NextRequest,
-  { params }: RouteContext
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const POST = withAuth(async (req, { session }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     await requireTeamRole(session.userId, id, "owner");
-  } catch (e: unknown) {
-    const err = e as { status?: number; error?: string };
-    return NextResponse.json({ error: err.error }, { status: err.status || 403 });
+  } catch (e) {
+    return handleAppError(e);
   }
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { email, role } = body;
@@ -117,4 +99,4 @@ export async function POST(
     console.error("[POST /api/teams/:id/members]", err);
     return NextResponse.json({ error: "Failed to add member" }, { status: 500 });
   }
-}
+});

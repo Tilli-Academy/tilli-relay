@@ -2,35 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { teamMembers, users } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 import { requireTeamRole } from "@/lib/teamAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 import { logActivity } from "@/lib/activityLog";
 
-type RouteContext = { params: Promise<{ id: string; memberId: string }> };
-
-export async function PUT(
-  req: NextRequest,
-  { params }: RouteContext
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id, memberId } = await params;
+export const PUT = withAuth(async (req, { session }, routeCtx) => {
+  const { id, memberId } = await routeCtx!.params;
 
   try {
     await requireTeamRole(session.userId, id, "owner");
-  } catch (e: unknown) {
-    const err = e as { status?: number; error?: string };
-    return NextResponse.json({ error: err.error }, { status: err.status || 403 });
+  } catch (e) {
+    return handleAppError(e);
   }
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { role } = body;
@@ -85,24 +76,15 @@ export async function PUT(
     console.error("[PUT /api/teams/:id/members/:memberId]", err);
     return NextResponse.json({ error: "Failed to update member" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: RouteContext
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id, memberId } = await params;
+export const DELETE = withAuth(async (_req, { session }, routeCtx) => {
+  const { id, memberId } = await routeCtx!.params;
 
   try {
     await requireTeamRole(session.userId, id, "owner");
-  } catch (e: unknown) {
-    const err = e as { status?: number; error?: string };
-    return NextResponse.json({ error: err.error }, { status: err.status || 403 });
+  } catch (e) {
+    return handleAppError(e);
   }
 
   try {
@@ -143,4 +125,4 @@ export async function DELETE(
     console.error("[DELETE /api/teams/:id/members/:memberId]", err);
     return NextResponse.json({ error: "Failed to remove member" }, { status: 500 });
   }
-}
+});

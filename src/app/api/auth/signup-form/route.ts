@@ -65,9 +65,10 @@ export async function POST(req: NextRequest) {
       .values({ email, passwordHash })
       .returning({ id: users.id });
 
-    const cookieHeader = await createSession(user.id);
+    const token = await createSession(user.id);
     const response = redirectTo("/", req);
-    return setSessionCookie(response, cookieHeader);
+    setSessionCookie(response, token);
+    return response;
   } catch (err) {
     console.error("[POST /api/auth/signup-form]", err);
     return redirectTo("/login?mode=signup&error=" + encodeURIComponent("Signup failed. Please try again."), req);

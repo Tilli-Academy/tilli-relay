@@ -13,7 +13,8 @@ dist
 .env.local
 .env.*.local
 
-
+# Drizzle migrations (generated)
+drizzle/
 
 # IDE
 .vscode
@@ -37,4 +38,7 @@ yarn-error.log*
 # Vercel
 .vercel
 
-
+# Playwright
+e2e/.auth/
+playwright-report/
+test-results/

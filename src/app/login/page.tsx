@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, FormEvent } from "react";
-import { api, getApiBase } from "@/lib/apiBase";
+import { api, getApiBase, setSessionToken } from "@/lib/apiBase";
 import { LOGO_SRC } from "@/lib/logo";
 
 function PasswordRules({ password }: { password: string }) {
@@ -101,6 +101,7 @@ function LoginForm() {
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.sessionToken) setSessionToken(data.sessionToken);
         window.location.href = getApiBase() + "/";
       } else {
         setError(data.error || "Login failed");
@@ -143,6 +144,7 @@ function LoginForm() {
       });
       const data = await res.json();
       if (res.ok) {
+        if (data.sessionToken) setSessionToken(data.sessionToken);
         window.location.href = getApiBase() + "/";
       } else {
         setError(data.error || "Signup failed");
@@ -198,7 +200,7 @@ function LoginForm() {
 
         {/* Login Form */}
         {mode === "login" && (
-          <form onSubmit={handleLogin} action="api/auth/login-form" method="post" className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label htmlFor="login-email" className="mb-1.5 block text-xs font-medium text-neutral-400">
                 Email
@@ -281,7 +283,7 @@ function LoginForm() {
 
         {/* Signup Form */}
         {mode === "signup" && (
-          <form onSubmit={handleSignup} action="api/auth/signup-form" method="post" className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <label htmlFor="signup-email" className="mb-1.5 block text-xs font-medium text-neutral-400">
                 Email

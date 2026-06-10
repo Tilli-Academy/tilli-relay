@@ -1,39 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { environmentVariables, environments } from "@/lib/schema";
 import { eq, and } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
-
-type RouteContext = { params: Promise<{ id: string }> };
+import { withTeamAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
+import { encrypt } from "@/lib/crypto";
 
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const KEY_MAX_LENGTH = 100;
 const VALUE_MAX_LENGTH = 10_000;
 
-export async function PUT(req: NextRequest, { params }: RouteContext) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const PUT = withTeamAuth("editor", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const data: Record<string, unknown> = {};
@@ -73,19 +58,27 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     // Find the variable — if in team context, allow any team member with editor role
     const [existing] = teamId
       ? await db
-          .select({ id: environmentVariables.id, environmentId: environmentVariables.environmentId })
+          .select({ id: environmentVariables.id, environmentId: environmentVariables.environmentId, isSecret: environmentVariables.isSecret })
           .from(environmentVariables)
           .innerJoin(environments, eq(environmentVariables.environmentId, environments.id))
           .where(and(eq(environmentVariables.id, id), eq(environments.teamId, teamId)))
           .limit(1)
       : await db
-          .select({ id: environmentVariables.id, environmentId: environmentVariables.environmentId })
+          .select({ id: environmentVariables.id, environmentId: environmentVariables.environmentId, isSecret: environmentVariables.isSecret })
           .from(environmentVariables)
           .where(and(eq(environmentVariables.id, id), eq(environmentVariables.userId, session.userId)))
           .limit(1);
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Encrypt value if the variable is or will be secret
+    if (data.value !== undefined) {
+      const willBeSecret = data.isSecret !== undefined ? data.isSecret : existing.isSecret;
+      if (willBeSecret) {
+        data.value = encrypt(data.value as string);
+      }
     }
 
     const [updated] = await db
@@ -106,25 +99,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     console.error("[PUT /api/variables/:id]", err);
     return NextResponse.json({ error: "Failed to update variable" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const DELETE = withTeamAuth("editor", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     // Find the variable — if in team context, allow any team member with editor role
@@ -151,4 +129,4 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     console.error("[DELETE /api/variables/:id]", err);
     return NextResponse.json({ error: "Failed to delete variable" }, { status: 500 });
   }
-}
+});

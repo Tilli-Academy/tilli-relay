@@ -4,13 +4,15 @@ import { users } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword, createSession, setSessionCookie } from "@/lib/auth";
 import { validateEmail, validatePassword } from "@/lib/validation";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 
 export async function POST(req: NextRequest) {
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { email, password } = body;
@@ -49,12 +51,13 @@ export async function POST(req: NextRequest) {
       .values({ email: normalizedEmail, passwordHash })
       .returning({ id: users.id, email: users.email });
 
-    const cookieHeader = await createSession(user.id);
+    const token = await createSession(user.id);
     const response = NextResponse.json(
-      { id: user.id, email: user.email },
+      { id: user.id, email: user.email, sessionToken: token },
       { status: 201 }
     );
-    return setSessionCookie(response, cookieHeader);
+    setSessionCookie(response, token);
+    return response;
   } catch (err) {
     console.error("[POST /api/auth/signup]", err);
     return NextResponse.json(

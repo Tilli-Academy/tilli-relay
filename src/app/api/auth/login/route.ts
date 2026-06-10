@@ -4,11 +4,14 @@ import { users } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword, createSession, setSessionCookie } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { getClientIp } from "@/lib/clientIp";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 
 export async function POST(req: NextRequest) {
-  // Rate limit: 5 attempts per minute per IP
-  const ip = req.headers.get("x-forwarded-for") ?? "unknown";
-  const rl = await checkRateLimit(`login:${ip}`, 5, 60);
+  // Rate limit: 20 attempts per minute per IP
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(`login:${ip}`, 20, 60);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many login attempts. Try again later." },
@@ -18,9 +21,9 @@ export async function POST(req: NextRequest) {
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { email, password } = body;
@@ -42,23 +45,28 @@ export async function POST(req: NextRequest) {
       .where(eq(users.email, normalizedEmail))
       .limit(1);
 
-    if (!user) {
+    // Constant-time: always run bcrypt to prevent timing-based user enumeration
+    const DUMMY_HASH = "$2b$12$000000000000000000000000000000000000000000000000000000";
+    const valid = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
+    if (!user || !valid) {
       return NextResponse.json(
-        { error: "No account found with this email", code: "USER_NOT_FOUND" },
+        { error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    if (!(await verifyPassword(password, user.passwordHash))) {
-      return NextResponse.json(
-        { error: "Incorrect password", code: "WRONG_PASSWORD" },
-        { status: 401 }
-      );
-    }
+    // Create session and get the token
+    const token = await createSession(user.id);
 
-    const cookieHeader = await createSession(user.id);
-    const response = NextResponse.json({ id: user.id, email: user.email });
-    return setSessionCookie(response, cookieHeader);
+    // Build response with token in body (for proxy environments where
+    // Set-Cookie is stripped) AND as a cookie (for direct access)
+    const response = NextResponse.json({
+      id: user.id,
+      email: user.email,
+      sessionToken: token,
+    });
+    setSessionCookie(response, token);
+    return response;
   } catch (err) {
     console.error("[POST /api/auth/login]", err);
     return NextResponse.json({ error: "Login failed" }, { status: 500 });

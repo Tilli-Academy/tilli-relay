@@ -2,16 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { historyEntries } from "@/lib/schema";
 import { eq, desc } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 
 const MAX_BODY_SIZE = 1_000_000; // 1MB cap for stored response bodies
 
-export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const GET = withAuth(async (req, { session }) => {
   const { searchParams } = new URL(req.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 200);
   const offset = parseInt(searchParams.get("offset") || "0", 10);
@@ -30,19 +27,14 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/history]", err);
     return NextResponse.json({ error: "Failed to fetch history" }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const POST = withAuth(async (req, { session }) => {
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { method, url, curl, statusCode, timeMs, responseHeaders, responseBody } = body;
@@ -77,14 +69,9 @@ export async function POST(req: NextRequest) {
     console.error("[POST /api/history]", err);
     return NextResponse.json({ error: "Failed to save history entry" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE() {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+export const DELETE = withAuth(async (_req, { session }) => {
   try {
     await db
       .delete(historyEntries)
@@ -95,4 +82,4 @@ export async function DELETE() {
     console.error("[DELETE /api/history]", err);
     return NextResponse.json({ error: "Failed to clear history" }, { status: 500 });
   }
-}
+});

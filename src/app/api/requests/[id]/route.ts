@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requests } from "@/lib/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
+import { withTeamAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
 import { logActivity } from "@/lib/activityLog";
-
-type RouteContext = { params: Promise<{ id: string }> };
+import { parseJsonBody } from "@/lib/request";
 
 async function findRequest(id: string, userId: string, teamId: string | null) {
   if (teamId) {
@@ -23,23 +22,8 @@ async function findRequest(id: string, userId: string, teamId: string | null) {
     .limit(1);
 }
 
-export async function GET(req: NextRequest, { params }: RouteContext) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "viewer");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const GET = withTeamAuth("viewer", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     const [request] = await findRequest(id, session.userId, teamId);
@@ -51,31 +35,16 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
     console.error("[GET /api/requests/:id]", err);
     return NextResponse.json({ error: "Failed to fetch request" }, { status: 500 });
   }
-}
+});
 
-export async function PUT(req: NextRequest, { params }: RouteContext) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const PUT = withTeamAuth("editor", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { name, curl } = body;
@@ -108,25 +77,10 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     console.error("[PUT /api/requests/:id]", err);
     return NextResponse.json({ error: "Failed to update request" }, { status: 500 });
   }
-}
+});
 
-export async function DELETE(req: NextRequest, { params }: RouteContext) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
+export const DELETE = withTeamAuth("editor", async (req, { session, teamId }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     const [existing] = await findRequest(id, session.userId, teamId);
@@ -145,4 +99,4 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
     console.error("[DELETE /api/requests/:id]", err);
     return NextResponse.json({ error: "Failed to delete request" }, { status: 500 });
   }
-}
+});

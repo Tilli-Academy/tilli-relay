@@ -2,27 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { activityLogs, users } from "@/lib/schema";
 import { eq, desc, count } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 import { requireTeamRole } from "@/lib/teamAuth";
+import { handleAppError } from "@/lib/errors";
 
-type RouteContext = { params: Promise<{ id: string }> };
-
-export async function GET(
-  req: NextRequest,
-  { params }: RouteContext
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { id } = await params;
+export const GET = withAuth(async (req, { session }, routeCtx) => {
+  const { id } = await routeCtx!.params;
 
   try {
     await requireTeamRole(session.userId, id, "viewer");
-  } catch (e: unknown) {
-    const err = e as { status?: number; error?: string };
-    return NextResponse.json({ error: err.error }, { status: err.status || 403 });
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { searchParams } = new URL(req.url);
@@ -59,4 +49,4 @@ export async function GET(
     console.error("[GET /api/teams/:id/activity]", err);
     return NextResponse.json({ error: "Failed to fetch activity" }, { status: 500 });
   }
-}
+});

@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { executeCurl } from "@/lib/curl/executor";
+import { executeCurlArgs } from "@/lib/curl/executor";
 import { getSession } from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { db } from "@/lib/db";
 import { environmentVariables, environments } from "@/lib/schema";
 import { eq, and, isNull } from "drizzle-orm";
-import { resolveVariables } from "@/lib/variables/substitutor";
+import { resolveVariablesInTokens } from "@/lib/variables/substitutor";
+import { tokenize, sanitizeTokens } from "@/lib/curl/sanitizer";
 import { cleanupTempFiles } from "@/lib/upload";
 import { requireTeamRole } from "@/lib/teamAuth";
+import { handleAppError } from "@/lib/errors";
 import { logActivity } from "@/lib/activityLog";
+import { decrypt } from "@/lib/crypto";
+import { parseJsonBody } from "@/lib/request";
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -30,17 +34,16 @@ export async function POST(req: NextRequest) {
   if (teamId) {
     try {
       await requireTeamRole(session.userId, teamId, "viewer");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
+    } catch (e) {
+      return handleAppError(e);
     }
   }
 
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { curl } = body;
@@ -49,8 +52,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing or invalid 'curl' field" }, { status: 400 });
   }
 
-  // Resolve {{VARIABLE}} placeholders with active environment's variables
-  let resolvedCurl = curl;
+  if (curl.length > 50_000) {
+    return NextResponse.json({ error: "curl command exceeds maximum length" }, { status: 400 });
+  }
+
+  // Tokenize first, then substitute variables per-token to prevent injection.
+  // A malicious variable value cannot introduce new argv tokens this way.
+  let tokens = tokenize(curl);
   let warning: string | undefined;
   try {
     // Find the active environment for the current workspace context
@@ -76,26 +84,28 @@ export async function POST(req: NextRequest) {
           .where(eq(environmentVariables.userId, session.userId));
 
     if (userVars.length > 0) {
-      const varMap = new Map(userVars.map((v) => [v.key, v.value]));
-      const { resolved, unresolvedKeys } = resolveVariables(curl, varMap);
-      resolvedCurl = resolved;
+      const varMap = new Map(userVars.map((v) => [v.key, decrypt(v.value)]));
+      const { resolved, unresolvedKeys } = resolveVariablesInTokens(tokens, varMap);
+      tokens = resolved;
       if (unresolvedKeys.length > 0) {
         warning = `Unresolved variables: ${unresolvedKeys.join(", ")}`;
       }
     }
   } catch (err) {
     console.error("[POST /api/execute] Failed to load variables:", err);
-    // Continue with original curl if variable loading fails
+    // Continue with original tokens if variable loading fails
   }
 
-  if (resolvedCurl.length > 50_000) {
-    return NextResponse.json({ error: "curl command exceeds maximum length" }, { status: 400 });
+  // Validate the resolved tokens (flag allowlist, URL protocol, etc.)
+  const sanitizeResult = sanitizeTokens(tokens);
+  if (!sanitizeResult.valid) {
+    return NextResponse.json({ error: sanitizeResult.error, warning }, { status: 422 });
   }
 
-  const result = await executeCurl(resolvedCurl);
+  const result = await executeCurlArgs(sanitizeResult.sanitizedArgs);
 
   // Clean up any temporary upload files referenced in the curl command
-  cleanupTempFiles(resolvedCurl).catch(() => {});
+  cleanupTempFiles(tokens.join(" ")).catch(() => {});
 
   if (result.error && result.status === 0) {
     return NextResponse.json({ error: result.error, warning }, { status: 422 });

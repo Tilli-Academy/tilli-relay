@@ -48,7 +48,7 @@ function makeTab(name?: string, state?: RequestState, savedRequestId?: string | 
   };
 }
 
-const LS_KEY_PREFIX = "reqify-tabs";
+const LS_KEY_PREFIX = "relay-tabs";
 
 function lsKey(userId?: string | null): string {
   return userId ? `${LS_KEY_PREFIX}-${userId}` : LS_KEY_PREFIX;

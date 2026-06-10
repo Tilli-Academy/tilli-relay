@@ -17,7 +17,7 @@ export interface TeamWorkspace {
 
 export type Workspace = PersonalWorkspace | TeamWorkspace;
 
-const STORAGE_KEY = "reqify-workspace";
+const STORAGE_KEY = "relay-workspace";
 
 function loadWorkspace(userId: string | undefined): Workspace {
   if (!userId || typeof window === "undefined") return { type: "personal" };

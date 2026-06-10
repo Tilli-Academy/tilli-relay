@@ -1,11 +1,118 @@
 import { execFile } from "child_process";
+import { promises as dns } from "dns";
 import { ExecutionResult } from "@/lib/types";
 import { sanitize } from "./sanitizer";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 // Delimiter used to separate response body from metadata
-const META_DELIMITER = "\n__REQIFY_META__\n";
+const META_DELIMITER = "\n__RELAY_META__\n";
+
+// ─── SSRF Protection ────────────────────────────────────────────────────────
+
+/** IPv4 ranges that are blocked (private, loopback, link-local, metadata) */
+const BLOCKED_IPV4_RANGES = [
+  { start: ip4ToNum("0.0.0.0"),       end: ip4ToNum("0.255.255.255") },
+  { start: ip4ToNum("10.0.0.0"),      end: ip4ToNum("10.255.255.255") },
+  { start: ip4ToNum("100.64.0.0"),    end: ip4ToNum("100.127.255.255") },
+  { start: ip4ToNum("127.0.0.0"),     end: ip4ToNum("127.255.255.255") },
+  { start: ip4ToNum("169.254.0.0"),   end: ip4ToNum("169.254.255.255") },
+  { start: ip4ToNum("172.16.0.0"),    end: ip4ToNum("172.31.255.255") },
+  { start: ip4ToNum("192.0.0.0"),     end: ip4ToNum("192.0.0.255") },
+  { start: ip4ToNum("192.168.0.0"),   end: ip4ToNum("192.168.255.255") },
+  { start: ip4ToNum("198.18.0.0"),    end: ip4ToNum("198.19.255.255") },
+];
+
+function ip4ToNum(ip: string): number {
+  const parts = ip.split(".").map(Number);
+  return ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+}
+
+function isBlockedIPv4(ip: string): boolean {
+  const num = ip4ToNum(ip);
+  return BLOCKED_IPV4_RANGES.some(r => num >= r.start && num <= r.end);
+}
+
+function isBlockedIPv6(ip: string): boolean {
+  const normalized = ip.toLowerCase();
+  if (normalized === "::1") return true;
+  return ["fc", "fd", "fe80"].some(prefix => normalized.startsWith(prefix));
+}
+
+function isBlockedIP(ip: string): boolean {
+  return ip.includes(":") ? isBlockedIPv6(ip) : isBlockedIPv4(ip);
+}
+
+function extractHostname(url: string): string | null {
+  try {
+    const hostname = new URL(url).hostname;
+    // Strip brackets from IPv6 addresses (URL parser includes them)
+    if (hostname.startsWith("[") && hostname.endsWith("]")) {
+      return hostname.slice(1, -1);
+    }
+    return hostname;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves hostname and checks if the IP is in a blocked range.
+ * Returns error string if blocked, null if allowed.
+ * Note: This checks only the initial URL. Redirect targets (via -L) are not
+ * re-validated — --max-redirs limits the chain as a secondary defense.
+ */
+async function checkSSRF(args: string[]): Promise<string | null> {
+  const url = args.find(a => a.startsWith("http://") || a.startsWith("https://"));
+  if (!url) return null;
+
+  const hostname = extractHostname(url);
+  if (!hostname) return "Invalid URL: could not extract hostname";
+
+  // In e2e test mode, allow localhost for mock server
+  if (process.env.RELAY_E2E_ALLOW_LOCAL === "true") {
+    if (hostname === "localhost" || hostname === "127.0.0.1") return null;
+  }
+
+  // Configurable allowlist (if set, only these hosts are permitted)
+  const allowedHosts = process.env.RELAY_ALLOWED_HOSTS;
+  if (allowedHosts) {
+    const allowed = allowedHosts.split(",").map(h => h.trim().toLowerCase());
+    if (allowed.includes(hostname.toLowerCase())) return null;
+    return `Host '${hostname}' is not in the allowed hosts list`;
+  }
+
+  // Configurable blocklist
+  const blockedHosts = process.env.RELAY_BLOCKED_HOSTS;
+  if (blockedHosts) {
+    const blocked = blockedHosts.split(",").map(h => h.trim().toLowerCase());
+    if (blocked.includes(hostname.toLowerCase())) {
+      return `Host '${hostname}' is blocked`;
+    }
+  }
+
+  // If hostname is already an IP literal, check directly
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.includes(":")) {
+    if (isBlockedIP(hostname)) {
+      return "Requests to private/internal IP addresses are not allowed";
+    }
+    return null;
+  }
+
+  // Resolve DNS and check all resulting IPs
+  try {
+    const results = await dns.lookup(hostname, { all: true });
+    for (const result of results) {
+      if (isBlockedIP(result.address)) {
+        return `Host '${hostname}' resolves to a private/internal IP address`;
+      }
+    }
+  } catch (err) {
+    return `DNS resolution failed for '${hostname}': ${(err as Error).message}`;
+  }
+
+  return null;
+}
 
 /**
  * Executes a curl command server-side.
@@ -24,10 +131,31 @@ export async function executeCurl(curlCommand: string): Promise<ExecutionResult>
     };
   }
 
+  return executeCurlArgs(sanitizeResult.sanitizedArgs);
+}
+
+/**
+ * Executes pre-sanitized curl args. Use this when sanitization has already
+ * been done (e.g. after tokenize → variable substitution → sanitizeTokens).
+ */
+export async function executeCurlArgs(sanitizedArgs: string[]): Promise<ExecutionResult> {
+  // SSRF check: resolve hostname and verify it's not a private/internal IP
+  const ssrfError = await checkSSRF(sanitizedArgs);
+  if (ssrfError) {
+    return {
+      status: 0,
+      headers: {},
+      body: "",
+      timeMs: 0,
+      error: ssrfError,
+    };
+  }
+
   const args = [
-    ...sanitizeResult.sanitizedArgs,
-    "-s", "-S",           // Silent mode with error reporting
-    "-i",                 // Include response headers in output
+    ...sanitizedArgs,
+    "-s", "-S",              // Silent mode with error reporting
+    "-i",                    // Include response headers in output
+    "--max-redirs", "5",     // Limit redirect chains (secondary SSRF defense)
     "-w", META_DELIMITER + "%{http_code}|%{time_total}",  // Append metadata
   ];
 

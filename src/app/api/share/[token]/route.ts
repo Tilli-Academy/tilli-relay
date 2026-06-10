@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sharedRequests, requests } from "@/lib/schema";
 import { eq } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
+import { withAuth } from "@/lib/withAuth";
 import { parseCurl } from "@/lib/curl/parser";
 
 type RouteContext = { params: Promise<{ token: string }> };
@@ -61,37 +61,29 @@ export async function GET(
 }
 
 /** Revoke a share link — requires auth + ownership. */
-export async function DELETE(
-  _req: NextRequest,
-  { params }: RouteContext
-) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const { token } = await params;
+export const DELETE = withAuth(async (_req, { session }, routeCtx) => {
+  const { token } = await routeCtx!.params;
 
   try {
-    const deleted = await db
-      .delete(sharedRequests)
+    const [share] = await db
+      .select()
+      .from(sharedRequests)
       .where(eq(sharedRequests.token, token))
-      .returning();
+      .limit(1);
 
-    if (deleted.length === 0) {
+    if (!share) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    // Only allow the creator to revoke
-    if (deleted[0].sharedByUserId !== session.userId) {
-      // Re-insert it since we already deleted
-      await db.insert(sharedRequests).values(deleted[0]);
+    if (share.sharedByUserId !== session.userId) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
+
+    await db.delete(sharedRequests).where(eq(sharedRequests.token, token));
 
     return NextResponse.json({ deleted: true });
   } catch (err) {
     console.error("[DELETE /api/share/:token]", err);
     return NextResponse.json({ error: "Failed to revoke share link" }, { status: 500 });
   }
-}
+});

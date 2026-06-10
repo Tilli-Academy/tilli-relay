@@ -1,28 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { environments } from "@/lib/schema";
 import { eq, and, desc, isNull } from "drizzle-orm";
-import { getSession } from "@/lib/auth";
-import { requireTeamRole } from "@/lib/teamAuth";
+import { withTeamAuth } from "@/lib/withAuth";
+import { handleAppError } from "@/lib/errors";
+import { parseJsonBody } from "@/lib/request";
 import { logActivity } from "@/lib/activityLog";
 
-export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "viewer");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
-
+export const GET = withTeamAuth("viewer", async (req, { session, teamId }) => {
   try {
     const filter = teamId
       ? eq(environments.teamId, teamId)
@@ -39,30 +24,14 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/environments]", err);
     return NextResponse.json({ error: "Failed to fetch environments" }, { status: 500 });
   }
-}
+});
 
-export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const teamId = req.headers.get("x-team-id");
-
-  if (teamId) {
-    try {
-      await requireTeamRole(session.userId, teamId, "editor");
-    } catch (e: unknown) {
-      const err = e as { status?: number; error?: string };
-      return NextResponse.json({ error: err.error }, { status: err.status || 403 });
-    }
-  }
-
+export const POST = withTeamAuth("editor", async (req, { session, teamId }) => {
   let body;
   try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    body = await parseJsonBody(req);
+  } catch (e) {
+    return handleAppError(e);
   }
 
   const { name } = body;
@@ -103,4 +72,4 @@ export async function POST(req: NextRequest) {
     console.error("[POST /api/environments]", err);
     return NextResponse.json({ error: "Failed to create environment" }, { status: 500 });
   }
-}
+});

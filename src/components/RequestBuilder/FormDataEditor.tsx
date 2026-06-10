@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { FormDataField } from "@/lib/types";
 import { XIcon, PlusIcon, UploadIcon } from "@/components/Icons";
 import { showToast } from "@/components/Toast/Toast";
-import { api } from "@/lib/apiBase";
+import { api, authFetch } from "@/lib/apiBase";
 
 export default function FormDataEditor({
   fields,
@@ -36,7 +36,7 @@ export default function FormDataEditor({
       try {
         const formData = new FormData();
         formData.append("file", file);
-        const res = await fetch(api("/api/upload"), {
+        const res = await authFetch(api("/api/upload"), {
           method: "POST",
           body: formData,
         });

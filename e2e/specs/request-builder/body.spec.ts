@@ -63,4 +63,39 @@ test.describe("Body Editor", () => {
     await page.locator(SEL.bodyTypeFormData).click();
     await expect(page.locator(SEL.bodyEditor)).toContainText(/Key|Field/i);
   });
+
+  test("body with unicode characters preserved in curl", async ({ page }) => {
+    await page.locator(SEL.bodyTypeJson).click();
+    await page.locator(SEL.bodyJsonInput).fill('{"emoji":"🚀","cjk":"日本語"}');
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("🚀");
+    expect(curlText).toContain("日本語");
+  });
+
+  test("large JSON body handled correctly", async ({ page }) => {
+    await page.locator(SEL.bodyTypeJson).click();
+    const largeObj: Record<string, string> = {};
+    for (let i = 0; i < 50; i++) {
+      largeObj[`key_${i}`] = `value_${i}`;
+    }
+    const json = JSON.stringify(largeObj, null, 2);
+    await page.locator(SEL.bodyJsonInput).fill(json);
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("key_0");
+    expect(curlText).toContain("key_49");
+  });
+
+  test("switching body type shows the correct editor", async ({ page }) => {
+    await page.locator(SEL.bodyTypeJson).click();
+    await page.locator(SEL.bodyJsonInput).fill('{"data":"test"}');
+    // Switch to text body
+    await page.locator(SEL.bodyTypeText).click();
+    // Text editor should now be visible
+    await expect(page.locator(SEL.bodyTextInput)).toBeVisible();
+    // JSON editor should no longer be visible
+    await expect(page.locator(SEL.bodyJsonInput)).not.toBeVisible();
+    // Switching back to JSON should show JSON editor again
+    await page.locator(SEL.bodyTypeJson).click();
+    await expect(page.locator(SEL.bodyJsonInput)).toBeVisible();
+  });
 });

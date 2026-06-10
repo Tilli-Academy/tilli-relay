@@ -44,7 +44,7 @@ export default function ResponseHistory({
 }) {
   if (history.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 py-8">
+      <div data-testid="history-empty" className="flex h-full flex-col items-center justify-center gap-2 py-8">
         <p className="text-xs text-content-muted">No history yet</p>
         <p className="text-[10px] text-content-dim">Send requests to build history</p>
       </div>
@@ -56,25 +56,27 @@ export default function ResponseHistory({
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[10px] text-content-muted">{history.length} request{history.length !== 1 ? "s" : ""}</span>
         <button
+          data-testid="history-clear-button"
           onClick={onClear}
           className="text-[10px] text-content-dim transition-colors hover:text-red-400"
         >
           Clear
         </button>
       </div>
-      {history.map((entry) => (
+      {history.map((entry, index) => (
         <button
           key={entry.id}
+          data-testid={`history-entry-${index}`}
           onClick={() => onSelect(entry)}
           className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left transition-colors hover:bg-surface-secondary"
         >
-          <span className={`shrink-0 text-[9px] font-bold ${METHOD_COLORS[entry.method] || "text-content-muted"}`}>
+          <span data-testid={`history-entry-method-${index}`} className={`shrink-0 text-[9px] font-bold ${METHOD_COLORS[entry.method] || "text-content-muted"}`}>
             {entry.method}
           </span>
-          <span className="min-w-0 flex-1 truncate text-xs text-content-tertiary">
+          <span data-testid={`history-entry-url-${index}`} className="min-w-0 flex-1 truncate text-xs text-content-tertiary">
             {entry.url}
           </span>
-          <span className={`shrink-0 text-[10px] font-medium ${statusColor(entry.status)}`}>
+          <span data-testid={`history-entry-status-${index}`} className={`shrink-0 text-[10px] font-medium ${statusColor(entry.status)}`}>
             {entry.status}
           </span>
           <span className="shrink-0 text-[10px] text-content-dim">

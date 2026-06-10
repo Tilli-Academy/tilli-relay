@@ -57,4 +57,30 @@ test.describe("Headers Editor", () => {
     expect(curlText).toContain("Accept");
     expect(curlText).toContain("X-Request-Id");
   });
+
+  test("header value with colons preserves full value", async ({ page }) => {
+    await page.locator(SEL.headerKey(0)).fill("X-Custom");
+    await page.locator(SEL.headerValue(0)).fill("a:b:c");
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("a:b:c");
+  });
+
+  test("adding 10+ headers — all appear in curl command", async ({ page }) => {
+    for (let i = 0; i < 10; i++) {
+      if (i > 0) await page.locator(SEL.addHeader).click();
+      await page.locator(SEL.headerKey(i)).fill(`H${i}`);
+      await page.locator(SEL.headerValue(i)).fill(`V${i}`);
+    }
+    const curlText = await ws.getCurlText();
+    for (let i = 0; i < 10; i++) {
+      expect(curlText).toContain(`H${i}`);
+    }
+  });
+
+  test("header with empty value still produces -H flag", async ({ page }) => {
+    await page.locator(SEL.headerKey(0)).fill("X-Empty");
+    await page.locator(SEL.headerValue(0)).fill("");
+    const curlText = await ws.getCurlText();
+    expect(curlText).toContain("X-Empty");
+  });
 });

@@ -1,325 +1,18 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ChevronRightIcon, ChevronDownIcon, TrashIcon, UnlinkIcon, FolderIcon, InboxIcon, PlusIcon, KeyIcon, UploadIcon, DownloadIcon } from "@/components/Icons";
-import { parseCurl } from "@/lib/curl/parser";
+import { ChevronRightIcon, ChevronDownIcon, TrashIcon, FolderIcon, InboxIcon, PlusIcon, KeyIcon, UploadIcon } from "@/components/Icons";
 import { buildCurl } from "@/lib/curl/builder";
 import { LOGO_SRC } from "@/lib/logo";
 import { HttpMethod } from "@/lib/types";
-import { api } from "@/lib/apiBase";
+import { api, authFetch } from "@/lib/apiBase";
 import WorkspaceSwitcher, { type TeamInfo } from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 import type { Workspace, TeamRole } from "@/hooks/useWorkspace";
-
-
-const METHOD_COLORS: Record<string, string> = {
-  GET: "text-green-400",
-  POST: "text-yellow-400",
-  PUT: "text-blue-400",
-  DELETE: "text-red-400",
-  PATCH: "text-purple-400",
-};
-
-function getMethodFromCurl(curl: string): string {
-  try {
-    return parseCurl(curl).method;
-  } catch {
-    return "GET";
-  }
-}
-
-function MethodBadge({ curl }: { curl: string }) {
-  const method = getMethodFromCurl(curl);
-  return (
-    <span className={`mr-1.5 shrink-0 text-[9px] font-bold ${METHOD_COLORS[method] || "text-content-muted"}`}>
-      {method}
-    </span>
-  );
-}
-
-interface SavedRequest {
-  id: string;
-  name: string;
-  curl: string;
-}
-
-interface CollectionWithRequests {
-  id: string;
-  name: string;
-  folderId: string | null;
-  requests: Array<{
-    id: string;
-    request: SavedRequest;
-  }>;
-}
-
-interface Folder {
-  id: string;
-  name: string;
-  collections: CollectionWithRequests[];
-}
-
-// ─── Plus Menu Dropdown ────────────────────────────────────────────────
-function PlusMenu({
-  items,
-}: {
-  items: { label: string; icon: React.ReactNode; onClick: () => void }[];
-}) {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  return (
-    <div ref={menuRef} className="relative">
-      <button
-        onClick={() => setOpen((p) => !p)}
-        title="Add"
-        className="rounded p-0.5 text-content-muted transition-colors hover:bg-surface-secondary hover:text-content-secondary"
-      >
-        <PlusIcon size={14} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full z-30 mt-1 w-52 rounded-md border border-border-primary bg-surface-primary py-1 shadow-xl">
-          {items.map((item, i) => (
-            <button
-              key={i}
-              onClick={() => { setOpen(false); item.onClick(); }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-content-secondary transition-colors hover:bg-surface-secondary"
-            >
-              <span className="shrink-0 text-content-muted">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Inline Name Input ─────────────────────────────────────────────────
-function InlineInput({
-  placeholder,
-  onSubmit,
-  onCancel,
-}: {
-  placeholder: string;
-  onSubmit: (value: string) => void;
-  onCancel: () => void;
-}) {
-  const [value, setValue] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onCancel();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onCancel]);
-
-  return (
-    <div ref={ref} className="my-1 flex gap-1">
-      <input
-        type="text"
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && value.trim()) onSubmit(value.trim());
-          if (e.key === "Escape") onCancel();
-        }}
-        autoFocus
-        className="flex-1 rounded border border-border-primary bg-surface-secondary px-2 py-1 text-xs text-content-primary placeholder-content-dim focus:border-tilli focus:outline-none"
-      />
-      <button
-        onClick={() => value.trim() && onSubmit(value.trim())}
-        className="rounded bg-tilli px-2 py-1 text-xs text-white hover:bg-tilli-light"
-      >
-        Add
-      </button>
-    </div>
-  );
-}
-
-// ─── Inline Request Input (method + name + URL) ─────────────────────────
-const METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH"] as const;
-
-function RequestInput({
-  onSubmit,
-  onCancel,
-}: {
-  onSubmit: (name: string, method: string, url: string) => void;
-  onCancel: () => void;
-}) {
-  const [method, setMethod] = useState<string>("GET");
-  const [name, setName] = useState("");
-  const [url, setUrl] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onCancel();
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onCancel]);
-
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    onSubmit(name.trim(), method, url.trim());
-  };
-
-  return (
-    <div ref={ref} className="my-1 space-y-1 rounded border border-border-primary bg-surface-tertiary p-2">
-      <div className="flex gap-1">
-        <select
-          value={method}
-          onChange={(e) => setMethod(e.target.value)}
-          className="rounded border border-border-primary bg-surface-secondary px-1.5 py-1 text-[10px] font-bold text-content-primary focus:border-tilli focus:outline-none"
-        >
-          {METHODS.map((m) => (
-            <option key={m} value={m}>{m}</option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="Request name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSubmit();
-            if (e.key === "Escape") onCancel();
-          }}
-          autoFocus
-          className="flex-1 rounded border border-border-primary bg-surface-secondary px-2 py-1 text-xs text-content-primary placeholder-content-dim focus:border-tilli focus:outline-none"
-        />
-      </div>
-      <div className="flex gap-1">
-        <input
-          type="text"
-          placeholder="https://api.example.com/endpoint"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSubmit();
-            if (e.key === "Escape") onCancel();
-          }}
-          className="flex-1 rounded border border-border-primary bg-surface-secondary px-2 py-1 text-xs text-content-primary placeholder-content-dim focus:border-tilli focus:outline-none"
-        />
-        <button
-          onClick={handleSubmit}
-          className="rounded bg-tilli px-2 py-1 text-xs text-white hover:bg-tilli-light"
-        >
-          Add
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Collection Node (reusable for inside folders and standalone) ──────
-function CollectionNode({
-  col,
-  depth,
-  expanded,
-  activeRequestId,
-  addingRequest,
-  onToggle,
-  onAddRequest,
-  onCancelAddRequest,
-  onSubmitAddRequest,
-  onDelete,
-  onExport,
-  onLoadRequest,
-  onRemoveFromCollection,
-  canWrite = true,
-}: {
-  col: CollectionWithRequests;
-  depth: number;
-  expanded: boolean;
-  activeRequestId: string | null;
-  addingRequest: boolean;
-  onToggle: () => void;
-  onAddRequest: () => void;
-  onCancelAddRequest: () => void;
-  onSubmitAddRequest: (name: string, method: string, url: string) => void;
-  onDelete: () => void;
-  onExport: (format: "postman" | "shell") => void;
-  onLoadRequest: (req: SavedRequest) => void;
-  onRemoveFromCollection: (collectionId: string, requestId: string) => void;
-  canWrite?: boolean;
-}) {
-  const ml = depth * 12;
-  return (
-    <div style={{ marginLeft: ml }}>
-      <div className="group/col flex items-center rounded transition-colors hover:bg-surface-secondary">
-        <button onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1 text-left text-xs text-content-secondary">
-          <span className="shrink-0 text-content-muted">
-            {expanded ? <ChevronDownIcon size={12} /> : <ChevronRightIcon size={12} />}
-          </span>
-          <FolderIcon size={12} className="shrink-0 text-tilli/70" />
-          <span className="truncate">{col.name}</span>
-          <span className="ml-auto shrink-0 text-[10px] text-content-dim">{col.requests.length}</span>
-        </button>
-        {canWrite && (
-          <button onClick={onAddRequest} title="Add request" className="shrink-0 px-1 py-1 text-content-dim opacity-0 transition-all hover:text-tilli-light group-hover/col:opacity-100">
-            <PlusIcon size={12} />
-          </button>
-        )}
-        <button onClick={() => onExport("postman")} title="Export as Postman JSON" className="shrink-0 px-1 py-1 text-content-dim opacity-0 transition-all hover:text-tilli-light group-hover/col:opacity-100">
-          <DownloadIcon size={12} />
-        </button>
-        {canWrite && (
-          <button onClick={onDelete} title="Delete collection" className="shrink-0 pr-2 py-1 text-content-dim opacity-0 transition-all hover:text-red-400 group-hover/col:opacity-100">
-            <TrashIcon size={12} />
-          </button>
-        )}
-      </div>
-      {expanded && (
-        <div className="ml-3">
-          {addingRequest && (
-            <RequestInput onSubmit={onSubmitAddRequest} onCancel={onCancelAddRequest} />
-          )}
-          {col.requests.length === 0 && !addingRequest ? (
-            <p className="px-2 py-1 text-[10px] text-content-dim">No requests</p>
-          ) : (
-            col.requests.map((cr) => (
-              <div
-                key={cr.id}
-                className={`group flex items-center rounded transition-colors ${
-                  activeRequestId === cr.request.id
-                    ? "bg-surface-secondary text-tilli-light"
-                    : "text-content-tertiary hover:bg-surface-tertiary hover:text-content-primary"
-                }`}
-              >
-                <button onClick={() => onLoadRequest(cr.request)} className="flex min-w-0 flex-1 items-center truncate px-2 py-1 text-left text-xs">
-                  <MethodBadge curl={cr.request.curl} />
-                  <span className="truncate">{cr.request.name}</span>
-                </button>
-                {canWrite && (
-                  <button
-                    onClick={() => onRemoveFromCollection(col.id, cr.request.id)}
-                    title="Remove from collection (request is kept under Requests)"
-                    className="hidden shrink-0 items-center pr-2 text-content-dim transition-colors hover:text-orange-400 group-hover:flex"
-                  >
-                    <UnlinkIcon size={10} />
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+import type { SavedRequest, CollectionWithRequests, Folder } from "@/lib/workspaceTypes";
+import { MethodBadge } from "@/components/Sidebar/MethodBadge";
+import { PlusMenu } from "@/components/Sidebar/PlusMenu";
+import { InlineInput } from "@/components/Sidebar/InlineInput";
+import { CollectionNode } from "@/components/Sidebar/CollectionNode";
 
 // ─── Main Sidebar ──────────────────────────────────────────────────────
 export default function Sidebar({
@@ -443,7 +136,7 @@ export default function Sidebar({
   // ── API actions ──
   const handleCreateFolder = useCallback(async (name: string) => {
     try {
-      const res = await fetch(api("/api/folders"), {
+      const res = await authFetch(api("/api/folders"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...teamHeaders },
         body: JSON.stringify({ name }),
@@ -457,7 +150,7 @@ export default function Sidebar({
 
   const handleCreateCollection = useCallback(async (name: string, folderId: string | null) => {
     try {
-      const res = await fetch(api("/api/collections"), {
+      const res = await authFetch(api("/api/collections"), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...teamHeaders },
         body: JSON.stringify({ name, folderId }),
@@ -482,7 +175,7 @@ export default function Sidebar({
       auth: { type: "none" },
     });
     try {
-      const res = await fetch(api(`/api/collections/${collectionId}/requests`), {
+      const res = await authFetch(api(`/api/collections/${collectionId}/requests`), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...teamHeaders },
         body: JSON.stringify({ name, curl }),
@@ -514,7 +207,7 @@ export default function Sidebar({
 
   const handleExportCollection = useCallback(async (collectionId: string, format: "postman" | "shell") => {
     try {
-      const res = await fetch(api(`/api/collections/${collectionId}/export?format=${format}`), {
+      const res = await authFetch(api(`/api/collections/${collectionId}/export?format=${format}`), {
         headers: { ...teamHeaders },
       });
       if (!res.ok) return;

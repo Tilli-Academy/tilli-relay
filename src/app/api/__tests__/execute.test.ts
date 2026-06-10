@@ -85,7 +85,7 @@ describe("POST /api/execute", () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, callback) => {
       (callback as Function)(
         null,
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true}\n__REQIFY_META__\n200|0.042",
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{\"ok\":true}\n__RELAY_META__\n200|0.042",
         ""
       );
       return {} as any;
@@ -119,7 +119,7 @@ describe("POST /api/execute", () => {
       expect(args).toContain("POST");
       expect(args).toContain("-H");
       expect(args).toContain("Content-Type: application/json");
-      (callback as Function)(null, "\n__REQIFY_META__\n200|0.001", "");
+      (callback as Function)(null, "\n__RELAY_META__\n200|0.001", "");
       return {} as any;
     });
 

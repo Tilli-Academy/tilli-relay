@@ -1,9 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-const jetbrains = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "Relay — API Development Tool",
@@ -26,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head />
-      <body className={`${inter.variable} ${jetbrains.variable} font-sans bg-surface-base text-content-primary antialiased`}>
+      <body className="font-sans bg-surface-base text-content-primary antialiased" style={{ fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }}>
         {children}
       </body>
     </html>

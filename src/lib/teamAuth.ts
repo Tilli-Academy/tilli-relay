@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { teamMembers } from "./schema";
 import { eq, and } from "drizzle-orm";
+import { AppError } from "./errors";
 
 export type TeamRole = "owner" | "editor" | "viewer";
 
@@ -26,7 +27,7 @@ export async function getUserTeamRole(
 
 /**
  * Require that a user has at least `minimumRole` in the given team.
- * Throws an object with `status` and `error` if unauthorized.
+ * Throws AppError if unauthorized.
  */
 export async function requireTeamRole(
   userId: string,
@@ -35,10 +36,10 @@ export async function requireTeamRole(
 ): Promise<TeamRole> {
   const role = await getUserTeamRole(userId, teamId);
   if (!role) {
-    throw { status: 403, error: "Not a member of this team" };
+    throw new AppError(403, "Not a member of this team");
   }
   if (ROLE_LEVEL[role] < ROLE_LEVEL[minimumRole]) {
-    throw { status: 403, error: `Requires ${minimumRole} role or higher` };
+    throw new AppError(403, `Requires ${minimumRole} role or higher`);
   }
   return role;
 }

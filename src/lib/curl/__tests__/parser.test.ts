@@ -181,10 +181,10 @@ describe("parseCurl", () => {
   });
 
   it("parses -F file field", () => {
-    const result = parseCurl("curl -F 'file=@/tmp/reqify-uploads/user/abc.txt' https://example.com");
+    const result = parseCurl("curl -F 'file=@/tmp/relay-uploads/user/abc.txt' https://example.com");
     expect(result.bodyType).toBe("form-data");
     expect(result.formData[0].type).toBe("file");
-    expect(result.formData[0].value).toBe("/tmp/reqify-uploads/user/abc.txt");
+    expect(result.formData[0].value).toBe("/tmp/relay-uploads/user/abc.txt");
     expect(result.formData[0].fileName).toBe("abc.txt");
   });
 

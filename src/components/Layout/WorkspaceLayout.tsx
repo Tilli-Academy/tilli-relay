@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 
-const STORAGE_KEY = "reqify-layout";
+const STORAGE_KEY = "relay-layout";
 
 interface LayoutSizes {
   sidebarWidth: number;

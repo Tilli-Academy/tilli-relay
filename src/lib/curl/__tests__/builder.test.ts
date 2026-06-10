@@ -223,10 +223,10 @@ describe("buildCurl", () => {
       method: "POST",
       bodyType: "form-data",
       formData: [
-        { key: "file", value: "/tmp/reqify-uploads/user/abc.txt", type: "file", enabled: true, fileName: "doc.txt" },
+        { key: "file", value: "/tmp/relay-uploads/user/abc.txt", type: "file", enabled: true, fileName: "doc.txt" },
       ],
     }));
-    expect(result).toContain("-F 'file=@/tmp/reqify-uploads/user/abc.txt;filename=doc.txt'");
+    expect(result).toContain("-F 'file=@/tmp/relay-uploads/user/abc.txt;filename=doc.txt'");
   });
 
   it("skips disabled form-data fields", () => {

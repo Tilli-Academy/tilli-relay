@@ -1,6 +1,7 @@
 import { test, expect } from "../../fixtures/auth.fixture";
 import { SEL } from "../../helpers/selectors";
 import { WorkspacePage } from "../../page-objects/WorkspacePage";
+import { MOCK_BASE } from "../../helpers/test-data";
 
 test.describe("Execution Error Handling", () => {
   let ws: WorkspacePage;
@@ -78,14 +79,33 @@ test.describe("Execution Error Handling", () => {
   });
 
   test("handles server error status codes", async () => {
-    await ws.fillUrl("https://httpbin.org/status/500");
+    await ws.fillUrl(`${MOCK_BASE}/status/500`);
     await ws.sendAndWaitForResponse();
     await ws.expectStatus(500);
   });
 
   test("handles 404 status codes", async () => {
-    await ws.fillUrl("https://httpbin.org/status/404");
+    await ws.fillUrl(`${MOCK_BASE}/status/404`);
     await ws.sendAndWaitForResponse();
     await ws.expectStatus(404);
+  });
+
+  test("server returning 204 No Content shows empty body", async () => {
+    await ws.fillUrl(`${MOCK_BASE}/status/204`);
+    await ws.sendAndWaitForResponse();
+    await ws.expectStatus(204);
+  });
+
+  test("server returning redirect shows redirect status", async () => {
+    await ws.fillUrl(`${MOCK_BASE}/redirect/1`);
+    await ws.sendAndWaitForResponse();
+    // curl without -L does not follow redirects; expects a 302 redirect status
+    await ws.expectStatus(302);
+  });
+
+  test("server returning 418 I'm a teapot shows status code", async () => {
+    await ws.fillUrl(`${MOCK_BASE}/status/418`);
+    await ws.sendAndWaitForResponse();
+    await ws.expectStatus(418);
   });
 });

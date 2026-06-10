@@ -194,13 +194,13 @@ describe("builder <-> parser roundtrip", () => {
       body: "",
       bodyType: "form-data",
       formData: [
-        { key: "file", value: "/tmp/reqify-uploads/user/abc.txt", type: "file", enabled: true },
+        { key: "file", value: "/tmp/relay-uploads/user/abc.txt", type: "file", enabled: true },
       ],
       auth: { type: "none" },
     };
     const parsed = roundtrip(state);
     expect(parsed.bodyType).toBe("form-data");
     expect(parsed.formData[0].type).toBe("file");
-    expect(parsed.formData[0].value).toBe("/tmp/reqify-uploads/user/abc.txt");
+    expect(parsed.formData[0].value).toBe("/tmp/relay-uploads/user/abc.txt");
   });
 });

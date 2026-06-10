@@ -17,29 +17,36 @@ export async function checkRateLimit(
   limit: number,
   windowSec: number
 ): Promise<RateLimitResult> {
-  const redisKey = `ratelimit:${key}`;
-  const now = Date.now();
-  const windowMs = windowSec * 1000;
+  try {
+    const redisKey = `ratelimit:${key}`;
+    const now = Date.now();
+    const windowMs = windowSec * 1000;
 
-  // Remove entries outside the window, add current, and count — all in one pipeline
-  const pipeline = redis.pipeline();
-  pipeline.zremrangebyscore(redisKey, 0, now - windowMs);
-  pipeline.zadd(redisKey, now, `${now}:${Math.random()}`);
-  pipeline.zcard(redisKey);
-  pipeline.expire(redisKey, windowSec);
+    // Remove entries outside the window, add current, and count — all in one pipeline
+    const pipeline = redis.pipeline();
+    pipeline.zremrangebyscore(redisKey, 0, now - windowMs);
+    pipeline.zadd(redisKey, now, `${now}:${Math.random()}`);
+    pipeline.zcard(redisKey);
+    pipeline.expire(redisKey, windowSec);
 
-  const results = await pipeline.exec();
-  const count = (results?.[2]?.[1] as number) ?? 0;
+    const results = await pipeline.exec();
+    const count = (results?.[2]?.[1] as number) ?? 0;
 
-  if (count > limit) {
-    // Get the oldest entry to calculate retry-after
-    const oldest = await redis.zrange(redisKey, 0, 0, "WITHSCORES");
-    const oldestTime = oldest.length >= 2 ? parseInt(oldest[1], 10) : now;
-    const retryAfterMs = oldestTime + windowMs - now;
-    const retryAfterSec = Math.max(1, Math.ceil(retryAfterMs / 1000));
+    if (count > limit) {
+      // Get the oldest entry to calculate retry-after
+      const oldest = await redis.zrange(redisKey, 0, 0, "WITHSCORES");
+      const oldestTime = oldest.length >= 2 ? parseInt(oldest[1], 10) : now;
+      const retryAfterMs = oldestTime + windowMs - now;
+      const retryAfterSec = Math.max(1, Math.ceil(retryAfterMs / 1000));
 
-    return { allowed: false, remaining: 0, retryAfterSec };
+      return { allowed: false, remaining: 0, retryAfterSec };
+    }
+
+    return { allowed: true, remaining: limit - count, retryAfterSec: 0 };
+  } catch (err) {
+    // If Redis is unavailable, allow the request through (fail open)
+    // rather than blocking all logins during Redis downtime
+    console.error("[rateLimit] Redis error, allowing request:", err);
+    return { allowed: true, remaining: limit, retryAfterSec: 0 };
   }
-
-  return { allowed: true, remaining: limit - count, retryAfterSec: 0 };
 }

@@ -4,9 +4,9 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: reqify
-      POSTGRES_PASSWORD: reqify
-      POSTGRES_DB: reqify
+      POSTGRES_USER: relay
+      POSTGRES_PASSWORD: relay
+      POSTGRES_DB: relay
     volumes:
       - pgdata:/var/lib/postgresql/data
 

@@ -1,6 +1,7 @@
 import { test, expect } from "../../fixtures/auth.fixture";
 import { SEL } from "../../helpers/selectors";
 import { WorkspacePage } from "../../page-objects/WorkspacePage";
+import { MOCK_BASE } from "../../helpers/test-data";
 
 test.describe("Request Execution", () => {
   let ws: WorkspacePage;
@@ -11,7 +12,7 @@ test.describe("Request Execution", () => {
   });
 
   test("sends GET request and displays 200 response", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await ws.expectStatus(200);
   });
@@ -20,7 +21,7 @@ test.describe("Request Execution", () => {
     page,
   }) => {
     await ws.selectMethod("POST");
-    await ws.fillUrl("https://httpbin.org/post");
+    await ws.fillUrl(`${MOCK_BASE}/post`);
     await ws.switchToTab("body");
     await page.locator(SEL.bodyTypeJson).click();
     await page.locator(SEL.bodyJsonInput).fill('{"name":"playwright"}');
@@ -30,13 +31,13 @@ test.describe("Request Execution", () => {
   });
 
   test("displays response time in milliseconds", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await expect(page.locator(SEL.responseTime)).toContainText(/\d+ms/);
   });
 
   test("displays response body size", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await expect(page.locator(SEL.responseSize)).toContainText(
       /\d+(\.\d+)?\s*(B|KB|MB)/,
@@ -46,7 +47,7 @@ test.describe("Request Execution", () => {
   test("response headers tab shows headers with count badge", async ({
     page,
   }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await page.locator(SEL.responseTabHeaders).click();
     await expect(page.locator(SEL.responseHeadersTable)).toBeVisible();
@@ -56,14 +57,14 @@ test.describe("Request Execution", () => {
   });
 
   test("JSON response shows pretty/raw toggle", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await expect(page.locator(SEL.responseViewPretty)).toBeVisible();
     await expect(page.locator(SEL.responseViewRaw)).toBeVisible();
   });
 
   test("switching between pretty and raw view works", async ({ page }) => {
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await page.locator(SEL.responseViewRaw).click();
     await expect(page.locator(SEL.responseBody)).toBeVisible();
@@ -76,7 +77,7 @@ test.describe("Request Execution", () => {
     context,
   }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await ws.fillUrl("https://httpbin.org/get");
+    await ws.fillUrl(`${MOCK_BASE}/get`);
     await ws.sendAndWaitForResponse();
     await page.locator(SEL.responseCopy).click();
     await expect(page.locator(SEL.responseCopy)).toContainText("Copied");
@@ -91,15 +92,58 @@ test.describe("Request Execution", () => {
 
   test("sends PUT request successfully", async () => {
     await ws.selectMethod("PUT");
-    await ws.fillUrl("https://httpbin.org/put");
+    await ws.fillUrl(`${MOCK_BASE}/put`);
     await ws.sendAndWaitForResponse();
     await ws.expectStatus(200);
   });
 
   test("sends DELETE request successfully", async () => {
     await ws.selectMethod("DELETE");
-    await ws.fillUrl("https://httpbin.org/delete");
+    await ws.fillUrl(`${MOCK_BASE}/delete`);
     await ws.sendAndWaitForResponse();
     await ws.expectStatus(200);
+  });
+
+  test("PATCH request sends and returns correct response", async () => {
+    await ws.selectMethod("PATCH");
+    await ws.fillUrl(`${MOCK_BASE}/patch`);
+    await ws.sendAndWaitForResponse();
+    await ws.expectStatus(200);
+    await ws.expectResponseBodyContains("patch");
+  });
+
+  test("POST with custom Content-Type header works", async ({ page }) => {
+    await ws.selectMethod("POST");
+    await ws.fillUrl(`${MOCK_BASE}/post`);
+    await ws.switchToTab("headers");
+    await page.locator(SEL.headerKey(0)).fill("Content-Type");
+    await page.locator(SEL.headerValue(0)).fill("text/xml");
+    await ws.switchToTab("body");
+    await page.locator(SEL.bodyTypeText).click();
+    await page.locator(SEL.bodyTextInput).fill("<root>data</root>");
+    await ws.sendAndWaitForResponse();
+    await ws.expectStatus(200);
+  });
+
+  test("request to slow endpoint shows spinner then completes", async ({
+    page,
+  }) => {
+    await ws.fillUrl(`${MOCK_BASE}/delay/2`);
+    await ws.clickSend();
+    // Spinner should appear while waiting
+    await expect(page.locator(SEL.responseSending)).toBeVisible({ timeout: 5_000 });
+    // Then result arrives
+    await expect(page.locator(SEL.responseStatus)).toBeVisible({ timeout: 35_000 });
+    await ws.expectStatus(200);
+  });
+
+  test("response with non-JSON content type displays as raw text", async ({
+    page,
+  }) => {
+    await ws.fillUrl(`${MOCK_BASE}/html`);
+    await ws.sendAndWaitForResponse();
+    await ws.expectStatus(200);
+    // Should show some HTML content in response body
+    await ws.expectResponseBodyContains("Herman Melville");
   });
 });
