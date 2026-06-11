@@ -93,10 +93,7 @@ export const SEL = {
   bodyFormatJson: tid("body-format-json"),
 
   // ── Auth Editor ──
-  authTypeNone: tid("auth-type-none"),
-  authTypeBasic: tid("auth-type-basic"),
-  authTypeBearer: tid("auth-type-bearer"),
-  authTypeApikey: tid("auth-type-apikey"),
+  authTypeSelect: tid("auth-type-select"),
   authBasicUsername: tid("auth-basic-username"),
   authBasicPassword: tid("auth-basic-password"),
   authBearerToken: tid("auth-bearer-token"),

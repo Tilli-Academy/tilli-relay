@@ -25,8 +25,8 @@ export default function TabBar({
   onNew: () => void;
 }) {
   return (
-    <div data-testid="tab-bar" className="flex items-center border-b border-border-secondary bg-surface-primary/50">
-      <div className="flex flex-1 items-center overflow-x-auto scrollbar-none">
+    <div data-testid="tab-bar" className="flex items-center">
+      <div className="flex items-center">
         {tabs.map((tab) => {
           const isActive = tab.id === activeTabId;
           return (
@@ -65,15 +65,15 @@ export default function TabBar({
             </div>
           );
         })}
+        <button
+          data-testid="new-tab-button"
+          onClick={onNew}
+          className="shrink-0 px-2 py-1.5 text-content-muted transition-colors hover:bg-surface-tertiary hover:text-content-secondary"
+          title="New tab (Ctrl+N)"
+        >
+          <PlusIcon size={14} />
+        </button>
       </div>
-      <button
-        data-testid="new-tab-button"
-        onClick={onNew}
-        className="shrink-0 border-l border-border-secondary px-2.5 py-1.5 text-content-muted transition-colors hover:bg-surface-tertiary hover:text-content-secondary"
-        title="New tab (Ctrl+N)"
-      >
-        <PlusIcon size={14} />
-      </button>
     </div>
   );
 }

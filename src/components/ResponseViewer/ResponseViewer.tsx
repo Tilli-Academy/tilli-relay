@@ -268,7 +268,7 @@ export default function ResponseViewer({
             </span>
           )}
         </button>
-        {history && history.length > 0 && (
+        {history && (
           <button
             data-testid="response-tab-history"
             onClick={() => setTab("history")}
@@ -279,9 +279,11 @@ export default function ResponseViewer({
             }`}
           >
             History
-            <span className="ml-1.5 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-content-secondary">
-              {history.length}
-            </span>
+            {history.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-content-secondary">
+                {history.length}
+              </span>
+            )}
           </button>
         )}
       </div>
@@ -368,11 +370,18 @@ export default function ResponseViewer({
           </div>
         )}
         {tab === "history" && history && onSelectHistory && onClearHistory && (
-          <ResponseHistory
-            history={history}
-            onSelect={onSelectHistory}
-            onClear={onClearHistory}
-          />
+          history.length > 0 ? (
+            <ResponseHistory
+              history={history}
+              onSelect={onSelectHistory}
+              onClear={onClearHistory}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 py-8">
+              <p className="text-xs text-content-muted">No history yet</p>
+              <p className="text-[10px] text-content-dim">Send a request to start recording history</p>
+            </div>
+          )
         )}
       </div>
     </div>

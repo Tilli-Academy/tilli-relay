@@ -49,7 +49,7 @@ const RequestBuilder = forwardRef<
   const hasAuth = state.auth.type !== "none";
 
   return (
-    <div data-testid="request-builder" className="flex h-full flex-col gap-3">
+    <div data-testid="request-builder" className="flex h-full flex-col">
       {/* Method + URL + Send */}
       <MethodUrlBar
         ref={ref}
@@ -62,8 +62,8 @@ const RequestBuilder = forwardRef<
         onSend={onSend}
       />
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border-secondary">
+      {/* Tabs — Postman-style underline tabs */}
+      <div className="mt-3 flex border-b border-border-secondary">
         <TabButton
           label="Params"
           testId="tab-params"
@@ -96,27 +96,29 @@ const RequestBuilder = forwardRef<
         />
       </div>
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto">
-        {tab === "params" && (
-          <ParamsEditor params={state.params} onChange={onParamsChange} />
-        )}
-        {tab === "headers" && (
-          <HeadersEditor headers={state.headers} onChange={onHeadersChange} />
-        )}
-        {tab === "body" && state.method !== "GET" && (
-          <BodyEditor
-            body={state.body}
-            bodyType={state.bodyType}
-            formData={state.formData}
-            onChange={onBodyChange}
-            onBodyTypeChange={onBodyTypeChange}
-            onFormDataChange={onFormDataChange}
-          />
-        )}
-        {tab === "auth" && (
-          <AuthEditor auth={state.auth} onChange={onAuthChange} />
-        )}
+      {/* Tab content — smooth transition */}
+      <div className="flex-1 overflow-y-auto pt-3">
+        <div className="animate-in fade-in duration-150">
+          {tab === "params" && (
+            <ParamsEditor params={state.params} onChange={onParamsChange} />
+          )}
+          {tab === "headers" && (
+            <HeadersEditor headers={state.headers} onChange={onHeadersChange} />
+          )}
+          {tab === "body" && state.method !== "GET" && (
+            <BodyEditor
+              body={state.body}
+              bodyType={state.bodyType}
+              formData={state.formData}
+              onChange={onBodyChange}
+              onBodyTypeChange={onBodyTypeChange}
+              onFormDataChange={onFormDataChange}
+            />
+          )}
+          {tab === "auth" && (
+            <AuthEditor auth={state.auth} onChange={onAuthChange} />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -143,20 +145,26 @@ function TabButton({
     <button
       data-testid={testId}
       onClick={onClick}
-      className={`relative px-3 py-1.5 text-xs font-medium transition-colors ${
+      className={`relative px-4 py-2 text-xs font-medium transition-all ${
         active
-          ? "border-b-2 border-tilli text-tilli-light"
+          ? "text-tilli-light"
           : "text-content-muted hover:text-content-secondary"
       }`}
     >
       {label}
       {badge !== undefined && badge > 0 && (
-        <span className="ml-1.5 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-content-secondary">
+        <span className={`ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
+          active ? "bg-tilli/20 text-tilli-light" : "bg-surface-secondary text-content-secondary"
+        }`}>
           {badge}
         </span>
       )}
       {dot && !badge && (
         <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-tilli" />
+      )}
+      {/* Active indicator bar */}
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-tilli" />
       )}
     </button>
   );

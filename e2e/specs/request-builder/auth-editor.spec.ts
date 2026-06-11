@@ -12,31 +12,29 @@ test.describe("Auth Editor", () => {
   });
 
   test("defaults to None auth type", async ({ page }) => {
-    await expect(page.locator(SEL.authTypeNone)).toHaveClass(
-      /bg-tilli/,
-    );
+    await expect(page.locator(SEL.authTypeSelect)).toHaveValue("none");
   });
 
   test("switches to Basic auth and shows fields", async ({ page }) => {
-    await page.locator(SEL.authTypeBasic).click();
+    await page.locator(SEL.authTypeSelect).selectOption("basic");
     await expect(page.locator(SEL.authBasicUsername)).toBeVisible();
     await expect(page.locator(SEL.authBasicPassword)).toBeVisible();
   });
 
   test("switches to Bearer auth and shows token field", async ({ page }) => {
-    await page.locator(SEL.authTypeBearer).click();
+    await page.locator(SEL.authTypeSelect).selectOption("bearer");
     await expect(page.locator(SEL.authBearerToken)).toBeVisible();
   });
 
   test("switches to API Key auth and shows fields", async ({ page }) => {
-    await page.locator(SEL.authTypeApikey).click();
+    await page.locator(SEL.authTypeSelect).selectOption("apikey");
     await expect(page.locator(SEL.authApikeyKey)).toBeVisible();
     await expect(page.locator(SEL.authApikeyValue)).toBeVisible();
     await expect(page.locator(SEL.authApikeyAddto)).toBeVisible();
   });
 
   test("Basic auth adds -u flag to curl", async ({ page }) => {
-    await page.locator(SEL.authTypeBasic).click();
+    await page.locator(SEL.authTypeSelect).selectOption("basic");
     await page.locator(SEL.authBasicUsername).fill("myuser");
     await page.locator(SEL.authBasicPassword).fill("mypass");
     const curlText = await ws.getCurlText();
@@ -45,7 +43,7 @@ test.describe("Auth Editor", () => {
   });
 
   test("Bearer auth adds Authorization header to curl", async ({ page }) => {
-    await page.locator(SEL.authTypeBearer).click();
+    await page.locator(SEL.authTypeSelect).selectOption("bearer");
     await page.locator(SEL.authBearerToken).fill("my-secret-token");
     const curlText = await ws.getCurlText();
     expect(curlText).toContain("Authorization");
@@ -53,7 +51,7 @@ test.describe("Auth Editor", () => {
   });
 
   test("API Key header mode adds -H flag to curl", async ({ page }) => {
-    await page.locator(SEL.authTypeApikey).click();
+    await page.locator(SEL.authTypeSelect).selectOption("apikey");
     await page.locator(SEL.authApikeyKey).fill("X-API-Key");
     await page.locator(SEL.authApikeyValue).fill("key123");
     await page.locator(SEL.authApikeyAddto).selectOption("header");
@@ -63,10 +61,10 @@ test.describe("Auth Editor", () => {
   });
 
   test("switching back to None removes auth from curl", async ({ page }) => {
-    await page.locator(SEL.authTypeBasic).click();
+    await page.locator(SEL.authTypeSelect).selectOption("basic");
     await page.locator(SEL.authBasicUsername).fill("user");
     await page.locator(SEL.authBasicPassword).fill("pass");
-    await page.locator(SEL.authTypeNone).click();
+    await page.locator(SEL.authTypeSelect).selectOption("none");
     const curlText = await ws.getCurlText();
     expect(curlText).not.toContain("-u");
     expect(curlText).not.toContain("user:pass");

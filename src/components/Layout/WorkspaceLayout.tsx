@@ -207,10 +207,10 @@ export default function WorkspaceLayout({
       {/* Main area */}
       <div ref={containerRef} className="flex flex-1 flex-col overflow-hidden">
         {/* Tab bar + Environment switcher */}
-        <div className="flex items-stretch">
-          <div className="flex-1 overflow-hidden">{tabBar}</div>
+        <div className="flex items-stretch border-b border-border-secondary bg-surface-primary/50">
+          <div className="min-w-0 flex-1 overflow-x-auto scrollbar-none">{tabBar}</div>
           {envSwitcher && (
-            <div className="flex items-center border-b border-border-secondary bg-surface-primary/50 px-2">
+            <div className="flex shrink-0 items-center px-2">
               {envSwitcher}
             </div>
           )}
