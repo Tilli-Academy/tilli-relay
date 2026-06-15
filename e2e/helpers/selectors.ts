@@ -220,6 +220,12 @@ export const SEL = {
   workspaceTeamOption: (id: string) => tid(`workspace-team-option-${id}`),
   workspaceManageTeams: tid("workspace-manage-teams"),
 
+  // ── Theme Toggle ──
+  themeToggle: tid("theme-toggle"),
+  themeBtnLight: tid("theme-btn-light"),
+  themeBtnDark: tid("theme-btn-dark"),
+  themeBtnSystem: tid("theme-btn-system"),
+
   // ── Activity Log ──
   activityLogPanel: tid("activity-log-panel"),
   activityLogClose: tid("activity-log-close"),

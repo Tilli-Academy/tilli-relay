@@ -156,6 +156,7 @@ export async function executeCurlArgs(sanitizedArgs: string[]): Promise<Executio
     "-s", "-S",              // Silent mode with error reporting
     "-i",                    // Include response headers in output
     "--max-redirs", "5",     // Limit redirect chains (secondary SSRF defense)
+    "--noproxy", "*",        // Ignore proxy env vars (prevents SSRF bypass via proxy)
     "-w", META_DELIMITER + "%{http_code}|%{time_total}",  // Append metadata
   ];
 

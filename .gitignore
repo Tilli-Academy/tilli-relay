@@ -42,3 +42,14 @@ yarn-error.log*
 e2e/.auth/
 playwright-report/
 test-results/
+blob-report/
+
+# Uploads (user-uploaded files)
+uploads/
+
+# Coverage
+coverage/
+
+# Misc
+*.log
+/tmp/

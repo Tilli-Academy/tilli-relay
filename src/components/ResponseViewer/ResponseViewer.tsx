@@ -61,18 +61,18 @@ function highlightJson(text: string): React.ReactNode {
     }
 
     if (match[1] && match[2]) {
-      parts.push(<span key={`k${i++}`} className="text-tilli-light">{match[1]}</span>);
-      parts.push(<span key={`c${i++}`} className="text-content-muted">{match[2]}</span>);
+      parts.push(<span key={`k${i++}`} className="text-syntax-key">{match[1]}</span>);
+      parts.push(<span key={`c${i++}`} className="text-syntax-punctuation">{match[2]}</span>);
     } else if (match[1]) {
-      parts.push(<span key={`s${i++}`} className="text-green-400">{match[1]}</span>);
+      parts.push(<span key={`s${i++}`} className="text-syntax-string">{match[1]}</span>);
     } else if (match[3]) {
-      parts.push(<span key={`n${i++}`} className="text-yellow-400">{match[3]}</span>);
+      parts.push(<span key={`n${i++}`} className="text-syntax-number">{match[3]}</span>);
     } else if (match[4]) {
-      parts.push(<span key={`b${i++}`} className="text-purple-400">{match[4]}</span>);
+      parts.push(<span key={`b${i++}`} className="text-syntax-boolean">{match[4]}</span>);
     } else if (match[5]) {
-      parts.push(<span key={`u${i++}`} className="text-content-muted">{match[5]}</span>);
+      parts.push(<span key={`u${i++}`} className="text-syntax-null">{match[5]}</span>);
     } else if (match[6]) {
-      parts.push(<span key={`p${i++}`} className="text-content-dim">{match[6]}</span>);
+      parts.push(<span key={`p${i++}`} className="text-syntax-punctuation">{match[6]}</span>);
     }
 
     lastIndex = regex.lastIndex;
@@ -377,7 +377,7 @@ export default function ResponseViewer({
               onClear={onClearHistory}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-2 py-8">
+            <div data-testid="history-empty" className="flex flex-col items-center justify-center gap-2 py-8">
               <p className="text-xs text-content-muted">No history yet</p>
               <p className="text-[10px] text-content-dim">Send a request to start recording history</p>
             </div>

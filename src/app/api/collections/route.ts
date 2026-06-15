@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { collections, collectionRequests, requests } from "@/lib/schema";
+import { collections, collectionRequests, requests, folders } from "@/lib/schema";
 import { eq, and, desc, asc, isNull, inArray } from "drizzle-orm";
 import { withTeamAuth } from "@/lib/withAuth";
 import { handleAppError } from "@/lib/errors";
@@ -77,6 +77,17 @@ export const POST = withTeamAuth("editor", async (req, { session, teamId }) => {
   }
 
   try {
+    // Verify folder ownership if folderId is provided (prevents cross-team IDOR)
+    if (folderId) {
+      const folderFilter = teamId
+        ? and(eq(folders.id, folderId), eq(folders.teamId, teamId))
+        : and(eq(folders.id, folderId), eq(folders.userId, session.userId), isNull(folders.teamId));
+      const [folder] = await db.select({ id: folders.id }).from(folders).where(folderFilter).limit(1);
+      if (!folder) {
+        return NextResponse.json({ error: "Folder not found or access denied" }, { status: 403 });
+      }
+    }
+
     const [created] = await db
       .insert(collections)
       .values({

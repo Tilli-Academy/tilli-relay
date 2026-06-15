@@ -24,24 +24,3 @@ export function resolveVariablesInTokens(
 
   return { resolved, unresolvedKeys };
 }
-
-/**
- * Resolves {{VARIABLE}} placeholders in a raw curl string.
- * @deprecated Use resolveVariablesInTokens after tokenization to prevent injection.
- */
-export function resolveVariables(
-  curl: string,
-  variables: Map<string, string>
-): { resolved: string; unresolvedKeys: string[] } {
-  const unresolvedKeys: string[] = [];
-
-  const resolved = curl.replace(VARIABLE_PATTERN, (match, key: string) => {
-    if (variables.has(key)) {
-      return variables.get(key)!;
-    }
-    unresolvedKeys.push(key);
-    return match;
-  });
-
-  return { resolved, unresolvedKeys };
-}

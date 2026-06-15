@@ -111,9 +111,15 @@ export function parseCurl(curl: string): RequestState {
       continue;
     }
 
-    // Anything else that doesn't start with - is the URL
+    // Anything else that doesn't start with - is the URL.
+    // Prefer tokens that look like actual URLs (http/https). For non-URL-like
+    // bare tokens (e.g. unquoted header values), only use as a fallback.
     if (!token.startsWith("-")) {
-      url = token;
+      if (token.startsWith("http://") || token.startsWith("https://")) {
+        url = token;
+      } else if (!url) {
+        url = token;
+      }
     }
 
     i++;

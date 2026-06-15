@@ -115,12 +115,19 @@ test.describe("Request Execution", () => {
   test("POST with custom Content-Type header works", async ({ page }) => {
     await ws.selectMethod("POST");
     await ws.fillUrl(`${MOCK_BASE}/post`);
-    await ws.switchToTab("headers");
-    await page.locator(SEL.headerKey(0)).fill("Content-Type");
-    await page.locator(SEL.headerValue(0)).fill("text/xml");
+
+    // Set body first so the curl builder has the body ready
     await ws.switchToTab("body");
     await page.locator(SEL.bodyTypeText).click();
-    await page.locator(SEL.bodyTextInput).fill("<root>data</root>");
+    await expect(page.locator(SEL.bodyTextInput)).toBeVisible();
+    // Use plain text body (avoid < which the sanitizer blocks as file redirect)
+    await page.locator(SEL.bodyTextInput).fill("hello=world&foo=bar");
+
+    // Then add the custom Content-Type header
+    await ws.switchToTab("headers");
+    await page.locator(SEL.headerKey(0)).fill("Content-Type");
+    await page.locator(SEL.headerValue(0)).fill("application/x-www-form-urlencoded");
+
     await ws.sendAndWaitForResponse();
     await ws.expectStatus(200);
   });

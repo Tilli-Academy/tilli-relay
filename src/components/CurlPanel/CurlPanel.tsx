@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ClipboardIcon, CheckIcon } from "@/components/Icons";
+import { useTheme } from "@/hooks/useTheme";
 import dynamic from "next/dynamic";
 
 const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
@@ -15,6 +16,7 @@ export default function CurlPanel({
 }) {
   const [copied, setCopied] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { resolved } = useTheme();
 
   // Clear debounce on unmount (prevents stale updates on tab switch)
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function CurlPanel({
           defaultLanguage="shell"
           value={curlString}
           onChange={handleEditorChange}
-          theme="vs-dark"
+          theme={resolved === "light" ? "light" : "vs-dark"}
           options={{
             minimap: { enabled: false },
             wordWrap: "on",

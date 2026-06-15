@@ -38,11 +38,74 @@ const FLAGS_WITH_VALUE = new Set([
 
 const UPLOAD_DIR = process.env.RELAY_UPLOAD_DIR || "/tmp/relay-uploads";
 
-/** Data flags whose values must not start with @ (prevents arbitrary file read) */
-const DATA_FLAGS = new Set(["-d", "--data", "--data-raw", "--data-binary"]);
-
-/** Cookie flags whose values must use key=value format (bare path = file read) */
+const FORM_FLAGS = new Set(["-F", "--form"]);
 const COOKIE_FLAGS = new Set(["-b", "--cookie"]);
+
+/**
+ * Centralized validation of a flag's value for file-reference attacks.
+ *
+ * curl can read arbitrary server files via several mechanisms:
+ *   -d @/file, --data-binary @/file     — send file as POST body
+ *   -H @/file                           — send file lines as request headers (curl 7.55+)
+ *   -F 'field=@/file'                   — upload file as multipart form
+ *   -F 'field=</file'                   — read file content into form field
+ *   -b /file                            — read cookies from file (bare path, no prefix)
+ *
+ * Strategy: block @ and < at the start of ALL flag values by default.
+ * Exceptions:
+ *   -F allows @path ONLY inside UPLOAD_DIR (legitimate file uploads)
+ *   -b allows key=value strings (inline cookies, not file paths)
+ */
+function validateFlagValue(flag: string, value: string): string | null {
+  // --- -F / --form: value is "key=content", validate the content part ---
+  if (FORM_FLAGS.has(flag)) {
+    const eqIdx = value.indexOf("=");
+    if (eqIdx !== -1) {
+      const content = value.slice(eqIdx + 1);
+
+      // < reads file content into the field — always block
+      if (content.startsWith("<")) {
+        return "File content references (<) are not allowed in form fields";
+      }
+
+      // @ uploads a file — allow only from UPLOAD_DIR
+      if (content.startsWith("@")) {
+        const filePath = content.slice(1).split(";")[0]; // strip ;filename=... suffix
+        if (!filePath.startsWith(UPLOAD_DIR + "/")) {
+          return "File path in -F must be within the upload directory";
+        }
+        if (filePath.includes("..")) {
+          return "Path traversal not allowed in -F file paths";
+        }
+        // Safe upload path — allow
+        return null;
+      }
+    }
+    // Plain text form field — safe
+    return null;
+  }
+
+  // --- -b / --cookie: bare paths (no =) are file reads ---
+  if (COOKIE_FLAGS.has(flag)) {
+    if (value.length > 0 && !value.includes("=")) {
+      return "Cookie file paths are not allowed; use key=value format";
+    }
+    // Inline cookie with = — still check for @ and < at start
+  }
+
+  // --- Universal: block @ and < at start of value for ALL flags ---
+  // curl interprets @file as "read from file" for -d, --data*, -H (7.55+), etc.
+  // < has no special meaning outside -F, but we block defensively against future
+  // curl versions or unexpected flag behaviour.
+  if (value.startsWith("@")) {
+    return "File references (@) are not allowed in flag values";
+  }
+  if (value.startsWith("<")) {
+    return "File content references (<) are not allowed in flag values";
+  }
+
+  return null;
+}
 
 /**
  * Validates and sanitizes a curl command string.
@@ -83,13 +146,11 @@ export function sanitizeTokens(tokens: string[]): SanitizeResult {
       }
 
       if (eqIdx !== -1) {
-        // --flag=value syntax: validate value portion before accepting
+        // --flag=value syntax: validate value portion
         const flagValue = token.slice(eqIdx + 1);
-        if (DATA_FLAGS.has(flagName) && flagValue.startsWith("@")) {
-          return { valid: false, error: "File references (@) are not allowed in data flags", sanitizedArgs: [] };
-        }
-        if (COOKIE_FLAGS.has(flagName) && flagValue.length > 0 && !flagValue.includes("=")) {
-          return { valid: false, error: "Cookie file paths are not allowed; use key=value format", sanitizedArgs: [] };
+        const err = validateFlagValue(flagName, flagValue);
+        if (err) {
+          return { valid: false, error: err, sanitizedArgs: [] };
         }
         args.push(token);
       } else {
@@ -102,32 +163,9 @@ export function sanitizeTokens(tokens: string[]): SanitizeResult {
             return { valid: false, error: `Flag '${token}' requires a value`, sanitizedArgs: [] };
           }
 
-          // Validate file paths in -F values
-          if (token === "-F" || token === "--form") {
-            const formValue = tokens[i];
-            const formEqIdx = formValue.indexOf("=");
-            if (formEqIdx !== -1) {
-              const rawValue = formValue.slice(formEqIdx + 1);
-              if (rawValue.startsWith("@")) {
-                const filePath = rawValue.slice(1).split(";")[0];
-                if (!filePath.startsWith(UPLOAD_DIR + "/")) {
-                  return { valid: false, error: "File path in -F must be within the upload directory", sanitizedArgs: [] };
-                }
-                if (filePath.includes("..")) {
-                  return { valid: false, error: "Path traversal not allowed in -F file paths", sanitizedArgs: [] };
-                }
-              }
-            }
-          }
-
-          // Block @file references in data flags (prevents arbitrary file read)
-          if (DATA_FLAGS.has(token) && tokens[i].startsWith("@")) {
-            return { valid: false, error: "File references (@) are not allowed in data flags", sanitizedArgs: [] };
-          }
-
-          // Block cookie file paths (values without = are treated as file paths by curl)
-          if (COOKIE_FLAGS.has(token) && tokens[i].length > 0 && !tokens[i].includes("=")) {
-            return { valid: false, error: "Cookie file paths are not allowed; use key=value format", sanitizedArgs: [] };
+          const err = validateFlagValue(token, tokens[i]);
+          if (err) {
+            return { valid: false, error: err, sanitizedArgs: [] };
           }
 
           args.push(tokens[i]);

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, FormEvent } from "react";
 import { api, getApiBase, setSessionToken } from "@/lib/apiBase";
 import { LOGO_SRC } from "@/lib/logo";
+import { useThemeProvider, ThemeCtx } from "@/hooks/useTheme";
 
 function PasswordRules({ password }: { password: string }) {
   const rules = useMemo(() => [
@@ -24,7 +25,7 @@ function PasswordRules({ password }: { password: string }) {
           <div
             key={i}
             className={`h-1 flex-1 rounded-full transition-colors ${
-              rule.met ? "bg-emerald-500" : "bg-neutral-800"
+              rule.met ? "bg-emerald-500" : "bg-border-primary"
             }`}
           />
         ))}
@@ -41,7 +42,7 @@ function PasswordRules({ password }: { password: string }) {
               strokeWidth={2}
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={`shrink-0 transition-colors ${rule.met ? "text-emerald-500" : "text-neutral-700"}`}
+              className={`shrink-0 transition-colors ${rule.met ? "text-emerald-500" : "text-content-faint"}`}
             >
               {rule.met ? (
                 <polyline points="20 6 9 17 4 12" />
@@ -49,13 +50,13 @@ function PasswordRules({ password }: { password: string }) {
                 <circle cx="12" cy="12" r="6" />
               )}
             </svg>
-            <span className={`transition-colors ${rule.met ? "text-emerald-400" : "text-neutral-600"}`}>
+            <span className={`transition-colors ${rule.met ? "text-emerald-400" : "text-content-dim"}`}>
               {rule.label}
             </span>
           </div>
         ))}
       </div>
-      <p className={`text-[10px] transition-colors ${metCount === 5 ? "text-emerald-500" : "text-neutral-600"}`}>
+      <p className={`text-[10px] transition-colors ${metCount === 5 ? "text-emerald-500" : "text-content-dim"}`}>
         {metCount === 5 ? "Strong password" : `${metCount}/5 requirements met`}
       </p>
     </div>
@@ -157,21 +158,21 @@ function LoginForm() {
   };
 
   const inputClass =
-    "w-full rounded-[10px] border border-neutral-800 bg-neutral-900 px-3.5 py-2.5 text-sm text-white placeholder-neutral-600 transition-all focus:border-tilli focus:outline-none focus:ring-2 focus:ring-tilli-glow";
+    "w-full rounded-[10px] border border-border-primary bg-surface-secondary px-3.5 py-2.5 text-sm text-content-primary placeholder-content-muted transition-all focus:border-tilli focus:outline-none focus:ring-2 focus:ring-tilli-glow";
 
   return (
     <div className="w-full max-w-[420px]">
       {/* Logo */}
       <div className="mb-8 text-center">
         <img src={LOGO_SRC} alt="Tilli LLC" className="mx-auto mb-4 h-16 w-16 rounded-2xl object-contain bg-white shadow-lg shadow-tilli/10" />
-        <h1 className="text-2xl font-bold tracking-tight text-white">Relay</h1>
-        <p className="mt-1.5 text-sm text-neutral-500">curl-first API development tool</p>
+        <h1 className="text-2xl font-bold tracking-tight text-content-primary">Relay</h1>
+        <p className="mt-1.5 text-sm text-content-muted">curl-first API development tool</p>
       </div>
 
       {/* Card */}
-      <div className="rounded-2xl border border-neutral-800/50 bg-[#0a0a0a] p-8 shadow-2xl shadow-black/60">
+      <div className="rounded-2xl border border-border-secondary bg-surface-primary p-8 shadow-2xl">
         {/* Toggle */}
-        <div className="mb-6 flex rounded-[10px] bg-neutral-900 p-1">
+        <div className="mb-6 flex rounded-[10px] bg-surface-secondary p-1">
           <button
             data-testid="auth-mode-login"
             type="button"
@@ -179,7 +180,7 @@ function LoginForm() {
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               mode === "login"
                 ? "tilli-gradient text-white shadow-md shadow-tilli/25"
-                : "text-neutral-500 hover:text-neutral-300"
+                : "text-content-muted hover:text-content-secondary"
             }`}
           >
             Log in
@@ -191,7 +192,7 @@ function LoginForm() {
             className={`flex-1 rounded-lg py-2 text-sm font-medium transition-all ${
               mode === "signup"
                 ? "tilli-gradient text-white shadow-md shadow-tilli/25"
-                : "text-neutral-500 hover:text-neutral-300"
+                : "text-content-muted hover:text-content-secondary"
             }`}
           >
             Sign up
@@ -202,7 +203,7 @@ function LoginForm() {
         {mode === "login" && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label htmlFor="login-email" className="mb-1.5 block text-xs font-medium text-neutral-400">
+              <label htmlFor="login-email" className="mb-1.5 block text-xs font-medium text-content-tertiary">
                 Email
               </label>
               <input
@@ -217,7 +218,7 @@ function LoginForm() {
               />
             </div>
             <div>
-              <label htmlFor="login-password" className="mb-1.5 block text-xs font-medium text-neutral-400">
+              <label htmlFor="login-password" className="mb-1.5 block text-xs font-medium text-content-tertiary">
                 Password
               </label>
               <input
@@ -233,15 +234,15 @@ function LoginForm() {
             </div>
 
             {error && (
-              <div data-testid="login-error" className="rounded-[10px] border border-red-900/40 bg-red-950/20 px-4 py-3">
+              <div data-testid="login-error" className="rounded-[10px] border border-status-error-text/30 bg-status-error-bg px-4 py-3">
                 <div className="flex items-start gap-2.5">
-                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-red-500">
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-status-error-text">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                   <div>
-                    <p className="text-xs font-medium text-red-400">{error}</p>
+                    <p className="text-xs font-medium text-status-error-text">{error}</p>
                     {errorCode === "USER_NOT_FOUND" && (
                       <button
                         type="button"
@@ -256,7 +257,7 @@ function LoginForm() {
                       </button>
                     )}
                     {errorCode === "WRONG_PASSWORD" && (
-                      <p className="mt-1 text-[11px] text-neutral-500">
+                      <p className="mt-1 text-[11px] text-content-muted">
                         Check your password and try again.
                       </p>
                     )}
@@ -285,7 +286,7 @@ function LoginForm() {
         {mode === "signup" && (
           <form onSubmit={handleSignup} className="space-y-4">
             <div>
-              <label htmlFor="signup-email" className="mb-1.5 block text-xs font-medium text-neutral-400">
+              <label htmlFor="signup-email" className="mb-1.5 block text-xs font-medium text-content-tertiary">
                 Email
               </label>
               <input
@@ -300,7 +301,7 @@ function LoginForm() {
               />
             </div>
             <div>
-              <label htmlFor="signup-password" className="mb-1.5 block text-xs font-medium text-neutral-400">
+              <label htmlFor="signup-password" className="mb-1.5 block text-xs font-medium text-content-tertiary">
                 Password
               </label>
               <input
@@ -318,7 +319,7 @@ function LoginForm() {
               <PasswordRules password={signupPassword} />
             </div>
             <div>
-              <label htmlFor="signup-confirm" className="mb-1.5 block text-xs font-medium text-neutral-400">
+              <label htmlFor="signup-confirm" className="mb-1.5 block text-xs font-medium text-content-tertiary">
                 Confirm Password
               </label>
               <input
@@ -334,14 +335,14 @@ function LoginForm() {
             </div>
 
             {error && (
-              <div data-testid="signup-error" className="rounded-[10px] border border-red-900/40 bg-red-950/20 px-4 py-3">
+              <div data-testid="signup-error" className="rounded-[10px] border border-status-error-text/30 bg-status-error-bg px-4 py-3">
                 <div className="flex items-start gap-2.5">
-                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-red-500">
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-status-error-text">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <p className="text-xs font-medium text-red-400">{error}</p>
+                  <p className="text-xs font-medium text-status-error-text">{error}</p>
                 </div>
               </div>
             )}
@@ -364,17 +365,21 @@ function LoginForm() {
       </div>
 
       {/* Footer */}
-      <p className="mt-6 text-center text-[11px] text-neutral-600">
-        Powered by <span className="text-neutral-500">Tilli LLC</span>
+      <p className="mt-6 text-center text-[11px] text-content-dim">
+        Powered by <span className="text-content-muted">Tilli LLC</span>
       </p>
     </div>
   );
 }
 
 export default function LoginPage() {
+  const themeCtx = useThemeProvider();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-black px-4">
-      <LoginForm />
-    </div>
+    <ThemeCtx.Provider value={themeCtx}>
+      <div className="flex min-h-screen items-center justify-center bg-surface-base px-4">
+        <LoginForm />
+      </div>
+    </ThemeCtx.Provider>
   );
 }

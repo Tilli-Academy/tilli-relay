@@ -18,7 +18,15 @@ export const GET = withTeamAuth("viewer", async (req, { session, teamId }) => {
   try {
     const conditions = [];
     if (teamId && environmentId) {
-      // Team context: show all variables in this team environment regardless of creator
+      // Verify the environment belongs to this team (prevents cross-team IDOR)
+      const [env] = await db
+        .select({ id: environments.id })
+        .from(environments)
+        .where(and(eq(environments.id, environmentId), eq(environments.teamId, teamId)))
+        .limit(1);
+      if (!env) {
+        return NextResponse.json({ error: "Environment not found or access denied" }, { status: 403 });
+      }
       conditions.push(eq(environmentVariables.environmentId, environmentId));
     } else if (environmentId) {
       // Personal context with specific environment

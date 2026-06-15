@@ -8,6 +8,7 @@ import { HttpMethod } from "@/lib/types";
 import { api, authFetch } from "@/lib/apiBase";
 import WorkspaceSwitcher, { type TeamInfo } from "@/components/WorkspaceSwitcher/WorkspaceSwitcher";
 import type { Workspace, TeamRole } from "@/hooks/useWorkspace";
+import { useTheme } from "@/hooks/useTheme";
 import type { SavedRequest, CollectionWithRequests, Folder } from "@/lib/workspaceTypes";
 import { MethodBadge } from "@/components/Sidebar/MethodBadge";
 import { PlusMenu } from "@/components/Sidebar/PlusMenu";
@@ -261,10 +262,13 @@ export default function Sidebar({
         </div>
         {user && (
           <div className="mt-2 flex items-center justify-between">
-            <span data-testid="sidebar-user-email" className="truncate text-[10px] text-content-muted" title={user.email}>{user.email}</span>
-            {onLogout && (
-              <button data-testid="sidebar-logout" onClick={onLogout} className="shrink-0 text-[10px] text-content-dim transition-colors hover:text-red-400">Logout</button>
-            )}
+            <span data-testid="sidebar-user-email" className="truncate text-[10px] text-content-primary font-medium" title={user.email}>{user.email}</span>
+            <div className="flex items-center gap-1.5">
+              <ThemeToggle />
+              {onLogout && (
+                <button data-testid="sidebar-logout" onClick={onLogout} className="shrink-0 rounded px-2 py-0.5 text-[10px] font-medium text-red-400 transition-colors hover:bg-red-500 hover:text-white">Logout</button>
+              )}
+            </div>
           </div>
         )}
         {/* Workspace switcher */}
@@ -470,6 +474,64 @@ export default function Sidebar({
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+
+  const options: { value: "light" | "dark" | "system"; label: string; icon: React.ReactNode }[] = [
+    {
+      value: "light",
+      label: "Light",
+      icon: (
+        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ),
+    },
+    {
+      value: "dark",
+      label: "Dark",
+      icon: (
+        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+    },
+    {
+      value: "system",
+      label: "System",
+      icon: (
+        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div data-testid="theme-toggle" className="flex rounded bg-surface-secondary p-0.5">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          data-testid={`theme-btn-${opt.value}`}
+          title={opt.label}
+          onClick={() => setTheme(opt.value)}
+          className={`rounded p-1 transition-colors ${
+            theme === opt.value
+              ? "bg-tilli text-white"
+              : "text-content-muted hover:text-content-secondary"
+          }`}
+        >
+          {opt.icon}
+        </button>
+      ))}
     </div>
   );
 }

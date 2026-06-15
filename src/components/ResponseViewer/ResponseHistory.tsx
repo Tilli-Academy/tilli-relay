@@ -13,17 +13,17 @@ export interface HistoryEntry {
 }
 
 const METHOD_COLORS: Record<string, string> = {
-  GET: "text-green-400",
-  POST: "text-yellow-400",
-  PUT: "text-blue-400",
-  DELETE: "text-red-400",
-  PATCH: "text-purple-400",
+  GET: "text-method-get",
+  POST: "text-method-post",
+  PUT: "text-method-put",
+  DELETE: "text-method-delete",
+  PATCH: "text-method-patch",
 };
 
 function statusColor(status: number): string {
-  if (status >= 200 && status < 300) return "text-green-400";
-  if (status >= 300 && status < 400) return "text-yellow-400";
-  return "text-red-400";
+  if (status >= 200 && status < 300) return "text-status-success-text";
+  if (status >= 300 && status < 400) return "text-status-warning-text";
+  return "text-status-error-text";
 }
 
 function timeAgo(timestamp: number): string {

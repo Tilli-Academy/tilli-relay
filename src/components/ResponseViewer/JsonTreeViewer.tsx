@@ -9,16 +9,16 @@ const MAX_DEPTH = 50;
 
 function JsonPrimitive({ value }: { value: unknown }) {
   if (value === null) {
-    return <span className="text-content-muted">null</span>;
+    return <span className="text-syntax-null">null</span>;
   }
   if (typeof value === "boolean") {
-    return <span className="text-purple-400">{String(value)}</span>;
+    return <span className="text-syntax-boolean">{String(value)}</span>;
   }
   if (typeof value === "number") {
-    return <span className="text-yellow-400">{String(value)}</span>;
+    return <span className="text-syntax-number">{String(value)}</span>;
   }
   if (typeof value === "string") {
-    return <span className="text-green-400">&quot;{value}&quot;</span>;
+    return <span className="text-syntax-string">&quot;{value}&quot;</span>;
   }
   return <span className="text-content-tertiary">{String(value)}</span>;
 }
@@ -39,9 +39,9 @@ function JsonArrayNode({
   if (depth >= MAX_DEPTH) {
     return (
       <div className="ml-4">
-        {name !== undefined && <span className="text-tilli-light">&quot;{name}&quot;</span>}
-        {name !== undefined && <span className="text-content-muted">: </span>}
-        <span className="text-content-muted">[...] (max depth)</span>
+        {name !== undefined && <span className="text-syntax-key">&quot;{name}&quot;</span>}
+        {name !== undefined && <span className="text-syntax-punctuation">: </span>}
+        <span className="text-syntax-null">[...] (max depth)</span>
       </div>
     );
   }
@@ -52,10 +52,10 @@ function JsonArrayNode({
         onClick={() => setExpanded(!expanded)}
         className="inline-flex items-center gap-1 text-left hover:bg-surface-tertiary"
       >
-        <span className="w-3 text-center text-content-muted">{expanded ? "▼" : "▶"}</span>
-        {name !== undefined && <span className="text-tilli-light">&quot;{name}&quot;</span>}
-        {name !== undefined && <span className="text-content-muted">: </span>}
-        <span className="text-content-dim">
+        <span className="w-3 text-center text-syntax-punctuation">{expanded ? "▼" : "▶"}</span>
+        {name !== undefined && <span className="text-syntax-key">&quot;{name}&quot;</span>}
+        {name !== undefined && <span className="text-syntax-punctuation">: </span>}
+        <span className="text-syntax-punctuation">
           {expanded ? "[" : `[...] ${value.length} items`}
         </span>
       </button>
@@ -63,8 +63,8 @@ function JsonArrayNode({
         <div className="ml-4 border-l border-border-secondary pl-2">
           {value.slice(0, visibleCount).map((item, idx) => (
             <div key={idx} className="flex">
-              <span className="mr-1 shrink-0 text-content-faint">{idx}</span>
-              <span className="text-content-dim">: </span>
+              <span className="mr-1 shrink-0 text-syntax-punctuation">{idx}</span>
+              <span className="text-syntax-punctuation">: </span>
               <JsonNode value={item} depth={depth + 1} />
             </div>
           ))}
@@ -76,7 +76,7 @@ function JsonArrayNode({
               Show next {Math.min(ARRAY_PAGE_SIZE, remaining)} items ({remaining} remaining)
             </button>
           )}
-          <span className="text-content-dim">]</span>
+          <span className="text-syntax-punctuation">]</span>
         </div>
       )}
     </div>
@@ -100,9 +100,9 @@ function JsonObjectNode({
   if (depth >= MAX_DEPTH) {
     return (
       <div className="ml-4">
-        {name !== undefined && <span className="text-tilli-light">&quot;{name}&quot;</span>}
-        {name !== undefined && <span className="text-content-muted">: </span>}
-        <span className="text-content-muted">{"{...}"} (max depth)</span>
+        {name !== undefined && <span className="text-syntax-key">&quot;{name}&quot;</span>}
+        {name !== undefined && <span className="text-syntax-punctuation">: </span>}
+        <span className="text-syntax-null">{"{...}"} (max depth)</span>
       </div>
     );
   }
@@ -113,10 +113,10 @@ function JsonObjectNode({
         onClick={() => setExpanded(!expanded)}
         className="inline-flex items-center gap-1 text-left hover:bg-surface-tertiary"
       >
-        <span className="w-3 text-center text-content-muted">{expanded ? "▼" : "▶"}</span>
-        {name !== undefined && <span className="text-tilli-light">&quot;{name}&quot;</span>}
-        {name !== undefined && <span className="text-content-muted">: </span>}
-        <span className="text-content-dim">
+        <span className="w-3 text-center text-syntax-punctuation">{expanded ? "▼" : "▶"}</span>
+        {name !== undefined && <span className="text-syntax-key">&quot;{name}&quot;</span>}
+        {name !== undefined && <span className="text-syntax-punctuation">: </span>}
+        <span className="text-syntax-punctuation">
           {expanded ? "{" : `{...} ${keys.length} keys`}
         </span>
       </button>
@@ -135,7 +135,7 @@ function JsonObjectNode({
               Show next {Math.min(OBJECT_PAGE_SIZE, remaining)} keys ({remaining} remaining)
             </button>
           )}
-          <span className="text-content-dim">{"}"}</span>
+          <span className="text-syntax-punctuation">{"}"}</span>
         </div>
       )}
     </div>
@@ -154,8 +154,8 @@ function JsonNode({
   if (value === null || typeof value !== "object") {
     return (
       <span>
-        {name !== undefined && <span className="text-tilli-light">&quot;{name}&quot;</span>}
-        {name !== undefined && <span className="text-content-muted">: </span>}
+        {name !== undefined && <span className="text-syntax-key">&quot;{name}&quot;</span>}
+        {name !== undefined && <span className="text-syntax-punctuation">: </span>}
         <JsonPrimitive value={value} />
       </span>
     );

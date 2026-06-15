@@ -32,6 +32,62 @@
   --toast-error-text: #fecaca;
   --toast-info-bg: #27272a;
   --toast-info-text: #d4d4d8;
+  --method-get: #4ade80;
+  --method-post: #facc15;
+  --method-put: #60a5fa;
+  --method-delete: #f87171;
+  --method-patch: #c084fc;
+  --syntax-string: #4ade80;
+  --syntax-number: #facc15;
+  --syntax-boolean: #c084fc;
+  --syntax-key: #5a7aff;
+  --syntax-punctuation: #52525b;
+  --syntax-null: #71717a;
+}
+
+/* ── Light theme ── */
+.light {
+  --surface-base: #f0f1f3;
+  --surface-primary: #e8e9ec;
+  --surface-secondary: #dddee2;
+  --surface-tertiary: rgba(210, 212, 218, 0.5);
+  --surface-elevated: #f5f6f7;
+  --border-primary: #b8bac0;
+  --border-secondary: #cccdd2;
+  --text-primary: #1a1c20;
+  --text-secondary: #2e3138;
+  --text-tertiary: #454850;
+  --text-muted: #5e6068;
+  --text-dim: #8b8d95;
+  --text-faint: #b0b2b8;
+  --scrollbar-thumb: #b8bac0;
+  --scrollbar-hover: #8b8d95;
+  --selection-bg: #3B5EFB30;
+  --selection-text: #1a1c20;
+  --overlay-bg: rgba(0, 0, 0, 0.35);
+  --status-success-bg: #d1fae5;
+  --status-success-text: #065f46;
+  --status-warning-bg: #fef3c7;
+  --status-warning-text: #92400e;
+  --status-error-bg: #fee2e2;
+  --status-error-text: #991b1b;
+  --toast-success-bg: #a7f3d0;
+  --toast-success-text: #064e3b;
+  --toast-error-bg: #fecaca;
+  --toast-error-text: #7f1d1d;
+  --toast-info-bg: #dddee2;
+  --toast-info-text: #2e3138;
+  --method-get: #16a34a;
+  --method-post: #ca8a04;
+  --method-put: #2563eb;
+  --method-delete: #dc2626;
+  --method-patch: #9333ea;
+  --syntax-string: #16a34a;
+  --syntax-number: #ca8a04;
+  --syntax-boolean: #9333ea;
+  --syntax-key: #1e40af;
+  --syntax-punctuation: #4b5563;
+  --syntax-null: #6b7280;
 }
 
 
@@ -77,6 +133,21 @@
   --color-toast-error-text: var(--toast-error-text);
   --color-toast-info-bg: var(--toast-info-bg);
   --color-toast-info-text: var(--toast-info-text);
+
+  /* Method colors */
+  --color-method-get: var(--method-get);
+  --color-method-post: var(--method-post);
+  --color-method-put: var(--method-put);
+  --color-method-delete: var(--method-delete);
+  --color-method-patch: var(--method-patch);
+
+  /* Syntax highlighting */
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-boolean: var(--syntax-boolean);
+  --color-syntax-key: var(--syntax-key);
+  --color-syntax-punctuation: var(--syntax-punctuation);
+  --color-syntax-null: var(--syntax-null);
 }
 
 /* Tilli gradient — matches the two logo colors */

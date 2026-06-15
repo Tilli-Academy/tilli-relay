@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "relay-session",
-      "value": "c9464f570551c9bdbe2b7a65587cebe1c826b8a582cef0f2a898b368fd3eb0b9",
+      "value": "d58acfaea6a33b30b618d59ee032e83937318e422b30f3c6894b3530407472d1",
       "domain": "localhost",
       "path": "/",
-      "expires": 1781697381.075894,
+      "expires": 1782123993.661583,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"
@@ -17,7 +17,7 @@
       "localStorage": [
         {
           "name": "relay-session-token",
-          "value": "c9464f570551c9bdbe2b7a65587cebe1c826b8a582cef0f2a898b368fd3eb0b9"
+          "value": "d58acfaea6a33b30b618d59ee032e83937318e422b30f3c6894b3530407472d1"
         }
       ]
     }

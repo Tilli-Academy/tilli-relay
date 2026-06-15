@@ -21,8 +21,12 @@ import TeamPanel from "@/components/TeamPanel/TeamPanel";
 import ActivityLog from "@/components/ActivityLog/ActivityLog";
 import ShareDialog from "@/components/ShareDialog/ShareDialog";
 import { api, getApiBase, authFetch, clearSessionToken } from "@/lib/apiBase";
+import { useThemeProvider, ThemeCtx } from "@/hooks/useTheme";
 
 export default function Home() {
+  // --- Theme ---
+  const themeCtx = useThemeProvider();
+
   // --- Auth state (must be before useWorkspace so userId is available) ---
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -225,7 +229,7 @@ export default function Home() {
   }
 
   return (
-    <>
+    <ThemeCtx.Provider value={themeCtx}>
       <WorkspaceLayout
         sidebarVisible={sidebarVisible}
         envSwitcher={
@@ -368,6 +372,6 @@ export default function Home() {
         requestName={activeTab.name || "Untitled Request"}
       />
       <ToastContainer />
-    </>
+    </ThemeCtx.Provider>
   );
 }

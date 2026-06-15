@@ -5,11 +5,11 @@ import { HttpMethod } from "@/lib/types";
 import { ChevronDownIcon, SendIcon } from "@/components/Icons";
 
 const METHOD_COLORS: Record<HttpMethod, string> = {
-  GET: "text-green-400",
-  POST: "text-yellow-400",
-  PUT: "text-blue-400",
-  DELETE: "text-red-400",
-  PATCH: "text-purple-400",
+  GET: "text-method-get",
+  POST: "text-method-post",
+  PUT: "text-method-put",
+  DELETE: "text-method-delete",
+  PATCH: "text-method-patch",
 };
 
 interface Param {

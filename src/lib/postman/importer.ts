@@ -278,10 +278,10 @@ function resolveBody(
         .filter((f) => !f.disabled)
         .map((f) => ({
           key: f.key || "",
-          value: f.type === "file" ? "" : (f.value || ""),
+          value: f.value || "",
           type: (f.type === "file" ? "file" : "text") as "text" | "file",
           enabled: true,
-          fileName: f.type === "file" ? (f.value || "") : undefined,
+          fileName: f.type === "file" ? (f.value || "").split("/").pop() || "" : undefined,
         }));
       return {
         body: "",

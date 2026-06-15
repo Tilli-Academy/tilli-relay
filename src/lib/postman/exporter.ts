@@ -43,7 +43,7 @@ interface PostmanAuth {
 interface PostmanRequestObj {
   method: string;
   header: PostmanHeader[];
-  url: { raw: string; protocol: string; host: string[]; path: string[]; query: Array<{ key: string; value: string; disabled: boolean }> };
+  url: { raw: string; protocol: string; host: string[]; port?: string; path: string[]; query: Array<{ key: string; value: string; disabled: boolean }> };
   body?: PostmanBody;
   auth?: PostmanAuth;
 }
@@ -75,7 +75,11 @@ function stateToPostmanRequest(name: string, state: RequestState): PostmanItem {
   }
 
   const [hostPart, ...pathParts] = hostPath.split("/");
-  const host = hostPart ? hostPart.split(".") : [];
+  // Separate host from port (e.g. "localhost:3000" → host=["localhost"], port="3000")
+  const colonIdx = hostPart.indexOf(":");
+  const hostWithoutPort = colonIdx !== -1 ? hostPart.slice(0, colonIdx) : hostPart;
+  const port = colonIdx !== -1 ? hostPart.slice(colonIdx + 1) : undefined;
+  const host = hostWithoutPort ? hostWithoutPort.split(".") : [];
   const path = pathParts.length > 0 ? pathParts : [];
 
   // Headers
@@ -142,7 +146,7 @@ function stateToPostmanRequest(name: string, state: RequestState): PostmanItem {
     request: {
       method: state.method,
       header: headers,
-      url: { raw, protocol, host, path, query },
+      url: { raw, protocol, host, ...(port ? { port } : {}), path, query },
       ...(body ? { body } : {}),
       ...(auth ? { auth } : {}),
     },
