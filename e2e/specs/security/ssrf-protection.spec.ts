@@ -1,6 +1,8 @@
 /**
  * Security regression tests: SSRF protection.
- * Verifies that server-side curl execution blocks private/internal IPs.
+ * Verifies that server-side curl execution blocks private/internal IPs,
+ * blocks redirect-based SSRF (-L to internal IPs), and pins DNS to
+ * prevent TOCTOU / DNS rebinding attacks.
  */
 
 import { test, expect } from "../../fixtures/auth.fixture";
@@ -61,6 +63,57 @@ test.describe("SSRF Protection — Private IP Blocking", () => {
   test("allows curl to legitimate public host", async ({ api }) => {
     const res = await api.executeRequestRaw(`curl ${MOCK_BASE}/get`);
     // Should succeed — public host is allowed
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe(200);
+  });
+});
+
+test.describe("SSRF Protection — Redirect Re-validation", () => {
+  test("blocks -L redirect to cloud metadata IP (169.254.169.254)", async ({ api }) => {
+    // Mock server returns 302 → http://169.254.169.254/latest/meta-data/
+    const res = await api.executeRequestRaw(`curl -L ${MOCK_BASE}/ssrf/redirect-to-metadata`);
+    expect(res.status()).toBe(422);
+    const body = await res.json();
+    expect(body.error).toMatch(/redirect blocked.*private|internal/i);
+  });
+
+  test("blocks -L redirect to private IP (10.0.0.1)", async ({ api }) => {
+    // Mock server returns 302 → http://10.0.0.1/internal
+    const res = await api.executeRequestRaw(`curl -L ${MOCK_BASE}/ssrf/redirect-to-private`);
+    expect(res.status()).toBe(422);
+    const body = await res.json();
+    expect(body.error).toMatch(/redirect blocked.*private|internal/i);
+  });
+
+  test("blocks -L redirect to file:// protocol", async ({ api }) => {
+    // Mock server returns 302 → file:///etc/passwd
+    const res = await api.executeRequestRaw(`curl -L ${MOCK_BASE}/ssrf/redirect-to-file`);
+    expect(res.status()).toBe(422);
+    const body = await res.json();
+    expect(body.error).toMatch(/disallowed protocol/i);
+  });
+
+  test("allows -L redirect to safe host (same mock server)", async ({ api }) => {
+    // /redirect/1 → 302 to /get (relative, same localhost mock server)
+    const res = await api.executeRequestRaw(`curl -L ${MOCK_BASE}/redirect/1`);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    // The final response should be from /get with status 200
+    expect(body.status).toBe(200);
+  });
+
+  test("returns 302 without following when -L is absent", async ({ api }) => {
+    // Without -L, curl returns the redirect response directly
+    const res = await api.executeRequestRaw(`curl ${MOCK_BASE}/redirect/1`);
+    expect(res.status()).toBe(200); // API itself returns 200; body contains the curl result
+    const body = await res.json();
+    expect(body.status).toBe(302);
+  });
+
+  test("allows multi-hop safe redirects with -L", async ({ api }) => {
+    // /redirect/3 → /redirect/2 → /redirect/1 → /get — all on same mock server
+    const res = await api.executeRequestRaw(`curl -L ${MOCK_BASE}/redirect/3`);
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.status).toBe(200);

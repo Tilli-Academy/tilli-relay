@@ -8,6 +8,12 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 // Delimiter used to separate response body from metadata
 const META_DELIMITER = "\n__RELAY_META__\n";
 
+/** Maximum number of redirect hops we follow manually */
+const MAX_REDIRECTS = 5;
+
+/** HTTP status codes that indicate a redirect */
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
 // ─── SSRF Protection ────────────────────────────────────────────────────────
 
 /** IPv4 ranges that are blocked (private, loopback, link-local, metadata) */
@@ -56,18 +62,37 @@ function extractHostname(url: string): string | null {
   }
 }
 
-/**
- * Resolves hostname and checks if the IP is in a blocked range.
- * Returns error string if blocked, null if allowed.
- * Note: This checks only the initial URL. Redirect targets (via -L) are not
- * re-validated — --max-redirs limits the chain as a secondary defense.
- */
-async function checkSSRF(args: string[]): Promise<string | null> {
-  const url = args.find(a => a.startsWith("http://") || a.startsWith("https://"));
-  if (!url) return null;
+/** Extracts the port from a URL (explicit port or protocol default). */
+function extractPort(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.port || (parsed.protocol === "https:" ? "443" : "80");
+  } catch {
+    return "80";
+  }
+}
 
+// ─── DNS resolution + IP pinning ────────────────────────────────────────────
+
+interface PinInfo {
+  hostname: string;
+  port: string;
+  pinnedIP: string;
+}
+
+/**
+ * Resolves hostname, validates every resulting IP against the blocklist,
+ * and returns pinning info so curl connects to exactly the validated IP.
+ *
+ * Returns PinInfo for DNS hostnames (curl must use --resolve to pin),
+ * or null for IP literals and explicitly-allowed hosts where pinning is
+ * unnecessary.
+ *
+ * Throws a descriptive error string if the host is blocked or DNS fails.
+ */
+async function resolveAndValidateHost(url: string): Promise<PinInfo | null> {
   const hostname = extractHostname(url);
-  if (!hostname) return "Invalid URL: could not extract hostname";
+  if (!hostname) throw "Invalid URL: could not extract hostname";
 
   // In e2e test mode, allow localhost for mock server
   if (process.env.RELAY_E2E_ALLOW_LOCAL === "true") {
@@ -79,7 +104,7 @@ async function checkSSRF(args: string[]): Promise<string | null> {
   if (allowedHosts) {
     const allowed = allowedHosts.split(",").map(h => h.trim().toLowerCase());
     if (allowed.includes(hostname.toLowerCase())) return null;
-    return `Host '${hostname}' is not in the allowed hosts list`;
+    throw `Host '${hostname}' is not in the allowed hosts list`;
   }
 
   // Configurable blocklist
@@ -87,32 +112,155 @@ async function checkSSRF(args: string[]): Promise<string | null> {
   if (blockedHosts) {
     const blocked = blockedHosts.split(",").map(h => h.trim().toLowerCase());
     if (blocked.includes(hostname.toLowerCase())) {
-      return `Host '${hostname}' is blocked`;
+      throw `Host '${hostname}' is blocked`;
     }
   }
 
-  // If hostname is already an IP literal, check directly
+  // If hostname is already an IP literal, check directly (no DNS to pin)
   if (/^\d+\.\d+\.\d+\.\d+$/.test(hostname) || hostname.includes(":")) {
     if (isBlockedIP(hostname)) {
-      return "Requests to private/internal IP addresses are not allowed";
+      throw "Requests to private/internal IP addresses are not allowed";
     }
     return null;
   }
 
   // Resolve DNS and check all resulting IPs
+  let results: { address: string; family: number }[];
   try {
-    const results = await dns.lookup(hostname, { all: true });
-    for (const result of results) {
-      if (isBlockedIP(result.address)) {
-        return `Host '${hostname}' resolves to a private/internal IP address`;
-      }
-    }
+    results = await dns.lookup(hostname, { all: true });
   } catch (err) {
-    return `DNS resolution failed for '${hostname}': ${(err as Error).message}`;
+    throw `DNS resolution failed for '${hostname}': ${(err as Error).message}`;
   }
 
-  return null;
+  if (results.length === 0) {
+    throw `DNS resolution returned no addresses for '${hostname}'`;
+  }
+
+  for (const result of results) {
+    if (isBlockedIP(result.address)) {
+      throw `Host '${hostname}' resolves to a private/internal IP address`;
+    }
+  }
+
+  // Pick the first IPv4 address for pinning (prefer IPv4 for compatibility)
+  const ipv4 = results.find(r => r.family === 4);
+  const pinnedIP = ipv4 ? ipv4.address : results[0].address;
+  const port = extractPort(url);
+
+  return { hostname, port, pinnedIP };
 }
+
+// ─── Redirect helpers ───────────────────────────────────────────────────────
+
+/**
+ * Strips -L / --location from args so curl never follows redirects itself.
+ * Returns whether the flag was present (so we know to follow manually).
+ */
+function extractRedirectFlag(args: string[]): { cleanArgs: string[]; followRedirects: boolean } {
+  let followRedirects = false;
+  const cleanArgs = args.filter(a => {
+    if (a === "-L" || a === "--location") {
+      followRedirects = true;
+      return false;
+    }
+    return true;
+  });
+  return { cleanArgs, followRedirects };
+}
+
+/**
+ * Resolves a Location header (possibly relative) against the current URL.
+ */
+function resolveRedirectUrl(location: string, currentUrl: string): string {
+  try {
+    return new URL(location, currentUrl).toString();
+  } catch {
+    return location;
+  }
+}
+
+/** Finds the URL token in a curl args array. */
+function findUrl(args: string[]): string | undefined {
+  return args.find(a => a.startsWith("http://") || a.startsWith("https://"));
+}
+
+/** Replaces the URL token in a curl args array. */
+function replaceUrl(args: string[], newUrl: string): string[] {
+  return args.map(a => (a.startsWith("http://") || a.startsWith("https://")) ? newUrl : a);
+}
+
+/**
+ * Adjusts args when following a redirect.
+ *
+ * 307/308: preserve method and body (exact replay).
+ * 301/302/303: switch to GET and drop the request body, matching standard
+ * curl -L and browser behaviour.
+ */
+function adjustArgsForRedirect(args: string[], statusCode: number): string[] {
+  // 307/308 preserve method and body
+  if (statusCode === 307 || statusCode === 308) return [...args];
+
+  // 301/302/303: switch to GET, drop request body
+  const result: string[] = [];
+  const bodyFlags = new Set(["-d", "--data", "--data-raw", "--data-binary", "-F", "--form"]);
+
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+
+    // Drop body flags that consume a separate value token
+    if (bodyFlags.has(a)) {
+      i++; // skip value
+      continue;
+    }
+    // Drop --flag=value body flags
+    const eqIdx = a.indexOf("=");
+    if (eqIdx !== -1 && bodyFlags.has(a.slice(0, eqIdx))) {
+      continue;
+    }
+
+    // Change explicit method to GET
+    if (a === "-X" || a === "--request") {
+      result.push(a);
+      if (i + 1 < args.length) i++; // skip original method value
+      result.push("GET");
+      continue;
+    }
+    if (a.startsWith("--request=")) {
+      result.push("--request=GET");
+      continue;
+    }
+
+    result.push(a);
+  }
+
+  return result;
+}
+
+// ─── Build final curl args ──────────────────────────────────────────────────
+
+/**
+ * Builds the final curl argv for a single hop, injecting --resolve when we
+ * have a pinned IP from DNS validation.
+ */
+function buildCurlWithPinnedIP(
+  args: string[],
+  pin: PinInfo | null,
+): string[] {
+  const pinArgs = pin
+    ? ["--resolve", `${pin.hostname}:${pin.port}:${pin.pinnedIP}`]
+    : [];
+
+  return [
+    ...pinArgs,
+    ...args,
+    "-s", "-S",              // Silent mode with error reporting
+    "-i",                    // Include response headers in output
+    "--noproxy", "*",        // Ignore proxy env vars (prevents SSRF bypass via proxy)
+    "-w", META_DELIMITER + "%{http_code}|%{time_total}",  // Append metadata
+  ];
+}
+
+// ─── Execution ──────────────────────────────────────────────────────────────
 
 /**
  * Executes a curl command server-side.
@@ -136,30 +284,82 @@ export async function executeCurl(curlCommand: string): Promise<ExecutionResult>
 
 /**
  * Executes pre-sanitized curl args. Use this when sanitization has already
- * been done (e.g. after tokenize → variable substitution → sanitizeTokens).
+ * been done (e.g. after tokenize -> variable substitution -> sanitizeTokens).
+ *
+ * Redirect following (-L) is intercepted and performed manually so that
+ * every hop is re-validated against the SSRF blocklist.  DNS results are
+ * pinned into the curl invocation via --resolve to prevent TOCTOU / DNS
+ * rebinding attacks.
  */
 export async function executeCurlArgs(sanitizedArgs: string[]): Promise<ExecutionResult> {
-  // SSRF check: resolve hostname and verify it's not a private/internal IP
-  const ssrfError = await checkSSRF(sanitizedArgs);
-  if (ssrfError) {
-    return {
-      status: 0,
-      headers: {},
-      body: "",
-      timeMs: 0,
-      error: ssrfError,
-    };
+  // Strip -L; we follow redirects ourselves so we can re-validate each hop
+  const { cleanArgs, followRedirects } = extractRedirectFlag(sanitizedArgs);
+
+  let currentArgs = cleanArgs;
+  let totalTimeMs = 0;
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const url = findUrl(currentArgs);
+    if (!url) {
+      return { status: 0, headers: {}, body: "", timeMs: totalTimeMs, error: "No URL found in curl args" };
+    }
+
+    // Resolve DNS, validate against blocklist, get IP to pin
+    let pin: PinInfo | null;
+    try {
+      pin = await resolveAndValidateHost(url);
+    } catch (err) {
+      const prefix = hop > 0 ? "Redirect blocked: " : "";
+      return { status: 0, headers: {}, body: "", timeMs: totalTimeMs, error: `${prefix}${err}` };
+    }
+
+    const execArgs = buildCurlWithPinnedIP(currentArgs, pin);
+    const hopResult = await execCurlOnce(execArgs);
+    totalTimeMs += hopResult.timeMs;
+
+    // If caller didn't request -L, or this isn't a redirect, we're done
+    if (!followRedirects || !REDIRECT_STATUSES.has(hopResult.status)) {
+      hopResult.timeMs = totalTimeMs;
+      return hopResult;
+    }
+
+    // Extract Location header (case-insensitive lookup)
+    const location = hopResult.headers["Location"] || hopResult.headers["location"];
+    if (!location) {
+      // Redirect status but no Location — return as-is
+      hopResult.timeMs = totalTimeMs;
+      return hopResult;
+    }
+
+    const nextUrl = resolveRedirectUrl(location, url);
+
+    // Validate redirect target protocol
+    if (!nextUrl.startsWith("http://") && !nextUrl.startsWith("https://")) {
+      return {
+        status: 0, headers: {}, body: "", timeMs: totalTimeMs,
+        error: `Redirect to disallowed protocol: ${nextUrl}`,
+      };
+    }
+
+    // Prepare args for next hop (may change method on 301/302/303)
+    currentArgs = replaceUrl(
+      adjustArgsForRedirect(currentArgs, hopResult.status),
+      nextUrl,
+    );
   }
 
-  const args = [
-    ...sanitizedArgs,
-    "-s", "-S",              // Silent mode with error reporting
-    "-i",                    // Include response headers in output
-    "--max-redirs", "5",     // Limit redirect chains (secondary SSRF defense)
-    "--noproxy", "*",        // Ignore proxy env vars (prevents SSRF bypass via proxy)
-    "-w", META_DELIMITER + "%{http_code}|%{time_total}",  // Append metadata
-  ];
+  return {
+    status: 0, headers: {}, body: "", timeMs: totalTimeMs,
+    error: `Too many redirects (max ${MAX_REDIRECTS})`,
+  };
+}
 
+// ─── Single-hop execution ───────────────────────────────────────────────────
+
+/**
+ * Runs a single curl invocation (no redirect following).
+ */
+function execCurlOnce(args: string[]): Promise<ExecutionResult> {
   return new Promise((resolve) => {
     execFile("curl", args, { timeout: DEFAULT_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error && !stdout) {
@@ -205,19 +405,21 @@ export async function executeCurlArgs(sanitizedArgs: string[]): Promise<Executio
   });
 }
 
+// ─── Response parsing ───────────────────────────────────────────────────────
+
 /**
  * Parses raw HTTP response (from curl -i) into headers and body.
  */
 function parseRawResponse(raw: string): { headers: Record<string, string>; body: string } {
   const headers: Record<string, string> = {};
 
-  // curl -i may include multiple header blocks (e.g., redirects).
+  // curl -i may include multiple header blocks (e.g., 100 Continue).
   // Use lastIndexOf to find the final header/body boundary.
   const crlfSplit = raw.lastIndexOf("\r\n\r\n");
   if (crlfSplit !== -1) {
     const headerSection = raw.slice(0, crlfSplit);
     const body = raw.slice(crlfSplit + 4);
-    // Parse only the last header block (after any redirect headers)
+    // Parse only the last header block (after any 1xx headers)
     const lastStatusLine = headerSection.lastIndexOf("HTTP/");
     const relevantHeaders = lastStatusLine !== -1 ? headerSection.slice(lastStatusLine) : headerSection;
     parseHeaderSection(relevantHeaders, headers);

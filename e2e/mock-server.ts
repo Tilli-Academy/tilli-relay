@@ -13,6 +13,9 @@
  *   ANY    /status/:code — return given HTTP status code
  *   GET    /redirect/:n  — redirect n times then return JSON
  *   GET    /headers      — echo request headers
+ *   GET    /ssrf/redirect-to-metadata — 302 → http://169.254.169.254/...
+ *   GET    /ssrf/redirect-to-private  — 302 → http://10.0.0.1/internal
+ *   GET    /ssrf/redirect-to-file     — 302 → file:///etc/passwd
  */
 
 import http from "http";
@@ -173,6 +176,29 @@ async function handleRequest(
     } else {
       jsonResponse(res, code, { status: code });
     }
+    return;
+  }
+
+  // ── SSRF redirect test endpoints ──
+
+  // /ssrf/redirect-to-metadata — 302 to cloud metadata IP
+  if (pathname === "/ssrf/redirect-to-metadata") {
+    res.writeHead(302, { Location: "http://169.254.169.254/latest/meta-data/" });
+    res.end();
+    return;
+  }
+
+  // /ssrf/redirect-to-private — 302 to private class-A IP
+  if (pathname === "/ssrf/redirect-to-private") {
+    res.writeHead(302, { Location: "http://10.0.0.1/internal" });
+    res.end();
+    return;
+  }
+
+  // /ssrf/redirect-to-file — 302 to file:// protocol
+  if (pathname === "/ssrf/redirect-to-file") {
+    res.writeHead(302, { Location: "file:///etc/passwd" });
+    res.end();
     return;
   }
 
