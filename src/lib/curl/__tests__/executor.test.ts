@@ -196,7 +196,7 @@ describe("executeCurl", () => {
 
     it("does not add --resolve for IP literals", async () => {
       mockExecFile.mockImplementation((_cmd, args, _opts, callback) => {
-        const joined = args.join(" ");
+        const joined = (args ?? []).join(" ");
         expect(joined).not.toContain("--resolve");
         (callback as Function)(
           null,
@@ -406,8 +406,8 @@ describe("executeCurl", () => {
 
       const execCalls: string[][] = [];
 
-      mockExecFile.mockImplementationOnce((_cmd, args: string[] | null, _opts, callback) => {
-        execCalls.push(args ?? []);
+      mockExecFile.mockImplementationOnce((_cmd, args, _opts, callback) => {
+        execCalls.push([...(args ?? [])]);
         (callback as Function)(
           null,
           "HTTP/1.1 302 Found\r\nLocation: https://other.example.com/final\r\n\r\n\n__RELAY_META__\n302|0.010",
@@ -415,8 +415,8 @@ describe("executeCurl", () => {
         );
         return {} as any;
       });
-      mockExecFile.mockImplementationOnce((_cmd, args: string[] | null, _opts, callback) => {
-        execCalls.push(args ?? []);
+      mockExecFile.mockImplementationOnce((_cmd, args, _opts, callback) => {
+        execCalls.push([...(args ?? [])]);
         (callback as Function)(
           null,
           "HTTP/1.1 200 OK\r\n\r\nDone\n__RELAY_META__\n200|0.020",
@@ -441,7 +441,7 @@ describe("executeCurl", () => {
       const execCalls: string[][] = [];
 
       mockExecFile.mockImplementationOnce((_cmd, args, _opts, callback) => {
-        execCalls.push(args as string[]);
+        execCalls.push([...(args ?? [])]);
         (callback as Function)(
           null,
           "HTTP/1.1 303 See Other\r\nLocation: https://example.com/result\r\n\r\n\n__RELAY_META__\n303|0.010",
@@ -450,7 +450,7 @@ describe("executeCurl", () => {
         return {} as any;
       });
       mockExecFile.mockImplementationOnce((_cmd, args, _opts, callback) => {
-        execCalls.push(args as string[]);
+        execCalls.push([...(args ?? [])]);
         (callback as Function)(
           null,
           "HTTP/1.1 200 OK\r\n\r\nResult\n__RELAY_META__\n200|0.020",
@@ -477,7 +477,7 @@ describe("executeCurl", () => {
       const execCalls: string[][] = [];
 
       mockExecFile.mockImplementationOnce((_cmd, args, _opts, callback) => {
-        execCalls.push(args as string[]);
+        execCalls.push([...(args ?? [])]);
         (callback as Function)(
           null,
           "HTTP/1.1 307 Temporary Redirect\r\nLocation: https://example.com/new\r\n\r\n\n__RELAY_META__\n307|0.010",
@@ -486,7 +486,7 @@ describe("executeCurl", () => {
         return {} as any;
       });
       mockExecFile.mockImplementationOnce((_cmd, args, _opts, callback) => {
-        execCalls.push(args as string[]);
+        execCalls.push([...(args ?? [])]);
         (callback as Function)(
           null,
           "HTTP/1.1 200 OK\r\n\r\nCreated\n__RELAY_META__\n200|0.020",
