@@ -18,27 +18,32 @@ export const PUT = withTeamAuth("editor", async (req, { session, teamId }, route
   }
 
   try {
-    // If setting this environment as active
+    // Build the filter for userActiveEnvironments (same for personal & team)
+    const activeFilter = teamId
+      ? and(eq(userActiveEnvironments.userId, session.userId), eq(userActiveEnvironments.teamId, teamId))
+      : and(eq(userActiveEnvironments.userId, session.userId), isNull(userActiveEnvironments.teamId));
+
     if (body.isActive === true) {
-      if (teamId) {
-        // Team context: per-user selection via user_active_environments
-        await db.transaction(async (tx) => {
-          await tx.delete(userActiveEnvironments).where(
-            and(eq(userActiveEnvironments.userId, session.userId), eq(userActiveEnvironments.teamId, teamId))
-          );
-          await tx.insert(userActiveEnvironments).values({
-            userId: session.userId,
-            teamId,
-            environmentId: id,
-          });
+      // Activate: update userActiveEnvironments for both personal & team
+      await db.transaction(async (tx) => {
+        await tx.delete(userActiveEnvironments).where(activeFilter);
+        await tx.insert(userActiveEnvironments).values({
+          userId: session.userId,
+          teamId: teamId || null,
+          environmentId: id,
         });
-      } else {
-        // Personal context: keep existing global behavior
+      });
+
+      // Personal workspace: also update the isActive column as fallback
+      if (!teamId) {
         await db
           .update(environments)
           .set({ isActive: false, updatedAt: new Date() })
           .where(and(eq(environments.userId, session.userId), isNull(environments.teamId)));
       }
+    } else if (body.isActive === false) {
+      // Clear: remove userActiveEnvironments record
+      await db.delete(userActiveEnvironments).where(activeFilter);
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
