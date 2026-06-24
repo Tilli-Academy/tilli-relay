@@ -1,0 +1,214 @@
+@import "tailwindcss";
+
+/* ── Dark theme (default) ── */
+:root {
+  --surface-base: #09090b;
+  --surface-primary: #18181b;
+  --surface-secondary: #27272a;
+  --surface-tertiary: rgba(39, 39, 42, 0.5);
+  --surface-elevated: #18181b;
+  --border-primary: #3f3f46;
+  --border-secondary: #27272a;
+  --text-primary: #f4f4f5;
+  --text-secondary: #d4d4d8;
+  --text-tertiary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-dim: #52525b;
+  --text-faint: #3f3f46;
+  --scrollbar-thumb: #3f3f46;
+  --scrollbar-hover: #52525b;
+  --selection-bg: #3B5EFB40;
+  --selection-text: #e4e4e7;
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+  --status-success-bg: #052e16;
+  --status-success-text: #4ade80;
+  --status-warning-bg: #422006;
+  --status-warning-text: #facc15;
+  --status-error-bg: #450a0a;
+  --status-error-text: #f87171;
+  --toast-success-bg: #14532d;
+  --toast-success-text: #bbf7d0;
+  --toast-error-bg: #7f1d1d;
+  --toast-error-text: #fecaca;
+  --toast-info-bg: #27272a;
+  --toast-info-text: #d4d4d8;
+  --method-get: #4ade80;
+  --method-post: #facc15;
+  --method-put: #60a5fa;
+  --method-delete: #f87171;
+  --method-patch: #c084fc;
+  --syntax-string: #4ade80;
+  --syntax-number: #facc15;
+  --syntax-boolean: #c084fc;
+  --syntax-key: #5a7aff;
+  --syntax-punctuation: #52525b;
+  --syntax-null: #71717a;
+}
+
+/* ── Light theme ── */
+.light {
+  --surface-base: #f0f1f3;
+  --surface-primary: #e8e9ec;
+  --surface-secondary: #dddee2;
+  --surface-tertiary: rgba(210, 212, 218, 0.5);
+  --surface-elevated: #f5f6f7;
+  --border-primary: #b8bac0;
+  --border-secondary: #cccdd2;
+  --text-primary: #1a1c20;
+  --text-secondary: #2e3138;
+  --text-tertiary: #454850;
+  --text-muted: #5e6068;
+  --text-dim: #8b8d95;
+  --text-faint: #b0b2b8;
+  --scrollbar-thumb: #b8bac0;
+  --scrollbar-hover: #8b8d95;
+  --selection-bg: #3B5EFB30;
+  --selection-text: #1a1c20;
+  --overlay-bg: rgba(0, 0, 0, 0.35);
+  --status-success-bg: #d1fae5;
+  --status-success-text: #065f46;
+  --status-warning-bg: #fef3c7;
+  --status-warning-text: #92400e;
+  --status-error-bg: #fee2e2;
+  --status-error-text: #991b1b;
+  --toast-success-bg: #a7f3d0;
+  --toast-success-text: #064e3b;
+  --toast-error-bg: #fecaca;
+  --toast-error-text: #7f1d1d;
+  --toast-info-bg: #dddee2;
+  --toast-info-text: #2e3138;
+  --method-get: #16a34a;
+  --method-post: #ca8a04;
+  --method-put: #2563eb;
+  --method-delete: #dc2626;
+  --method-patch: #9333ea;
+  --syntax-string: #16a34a;
+  --syntax-number: #ca8a04;
+  --syntax-boolean: #9333ea;
+  --syntax-key: #1e40af;
+  --syntax-punctuation: #4b5563;
+  --syntax-null: #6b7280;
+}
+
+
+@theme {
+  /* Brand colors */
+  --color-tilli: #3B5EFB;
+  --color-tilli-light: #5a7aff;
+  --color-tilli-dark: #2f4cd4;
+  --color-tilli-cyan: #29C5F6;
+  --color-tilli-glow: #3B5EFB40;
+
+  /* Semantic surface colors */
+  --color-surface-base: var(--surface-base);
+  --color-surface-primary: var(--surface-primary);
+  --color-surface-secondary: var(--surface-secondary);
+  --color-surface-tertiary: var(--surface-tertiary);
+  --color-surface-elevated: var(--surface-elevated);
+
+  /* Semantic border colors */
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
+
+  /* Semantic text colors */
+  --color-content-primary: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-content-tertiary: var(--text-tertiary);
+  --color-content-muted: var(--text-muted);
+  --color-content-dim: var(--text-dim);
+  --color-content-faint: var(--text-faint);
+
+  /* Status colors */
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-success-text: var(--status-success-text);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-warning-text: var(--status-warning-text);
+  --color-status-error-bg: var(--status-error-bg);
+  --color-status-error-text: var(--status-error-text);
+
+  /* Toast colors */
+  --color-toast-success-bg: var(--toast-success-bg);
+  --color-toast-success-text: var(--toast-success-text);
+  --color-toast-error-bg: var(--toast-error-bg);
+  --color-toast-error-text: var(--toast-error-text);
+  --color-toast-info-bg: var(--toast-info-bg);
+  --color-toast-info-text: var(--toast-info-text);
+
+  /* Method colors */
+  --color-method-get: var(--method-get);
+  --color-method-post: var(--method-post);
+  --color-method-put: var(--method-put);
+  --color-method-delete: var(--method-delete);
+  --color-method-patch: var(--method-patch);
+
+  /* Syntax highlighting */
+  --color-syntax-string: var(--syntax-string);
+  --color-syntax-number: var(--syntax-number);
+  --color-syntax-boolean: var(--syntax-boolean);
+  --color-syntax-key: var(--syntax-key);
+  --color-syntax-punctuation: var(--syntax-punctuation);
+  --color-syntax-null: var(--syntax-null);
+}
+
+/* Tilli gradient — matches the two logo colors */
+.tilli-gradient {
+  background: linear-gradient(90deg, #3B5EFB 0%, #29C5F6 100%);
+}
+
+.tilli-gradient-text {
+  background: linear-gradient(90deg, #3B5EFB 0%, #29C5F6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Custom scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-hover);
+}
+
+/* Selection color */
+::selection {
+  background-color: var(--selection-bg);
+  color: var(--selection-text);
+}
+
+/* Focus ring defaults */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid #3B5EFB;
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Smooth transitions for interactive elements */
+button,
+a,
+input,
+textarea,
+select {
+  transition-property: color, background-color, border-color, outline-color, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
